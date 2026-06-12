@@ -1,0 +1,673 @@
+{
+  "entries": {
+    "4975090277_COAP协议持续GET操作时模组死机": {
+      "title": "COAP协议持续GET操作时模组死机",
+      "file": "COAP协议持续GET操作时模组死机.md",
+      "hash": "6a807d9922b51319d2f0cbb85db1c7ee",
+      "archived_at": "2026-06-12T15:17:48.510622",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "CoAP/libcoap/堆内存",
+        "bug_type": "资源耗尽",
+        "symptoms": [
+          "COAP死机",
+          "堆内存泄漏",
+          "OPTLIST泄漏",
+          "LL_SORT bug",
+          "pvPortMallocEC返回NULL",
+          "ASSERT死机",
+          "COAPCLOSE循环",
+          "内存持续下降"
+        ],
+        "root_cause": "COAP客户端在COAPCLOSE→COAPOPEN循环中存在heap内存泄漏，OPTLIST（t=12）100%泄漏率（120 allocs / 0 frees）。根因是coap_add_optlist_pdu()中的LL_SORT宏在ICCARM编译器NO_DECLTYPE模式下，将*options置为NULL后无法正确恢复，导致6个optlist节点（~143B/周期）全部泄漏，最终堆内存耗尽触发ASSERT死机",
+        "call_chain_summary": "COAPSEND → coap_new_request → coap_add_optlist_pdu → LL_SORT((*options), order_opts) → *options=NULL → OPTLIST泄漏 → 堆耗尽 → coapSlpDeInit → coap_recv_task_Init → xTaskCreate → pvPortMallocEC(1575) → NULL → ASSERT死机",
+        "keywords": [
+          "COAP死机",
+          "OPTLIST泄漏",
+          "LL_SORT",
+          "NO_DECLTYPE",
+          "ICCARM",
+          "utlist",
+          "coap_add_optlist_pdu",
+          "堆内存泄漏",
+          "pvPortMallocEC NULL",
+          "EC626 COAP",
+          "CoAP close循环",
+          "内存耗尽死机"
+        ]
+      }
+    },
+    "6891620297_长期挂测挂测900多次出现死机": {
+      "title": "长期挂测挂测900多次出现死机",
+      "file": "长期挂测挂测900多次出现死机.md",
+      "hash": "8b098a88e542d986d96120d8424cf324",
+      "archived_at": "2026-06-11T19:38:56.969680",
+      "source_files": [
+        "Dump分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "CoAP/LWIP/堆内存",
+        "bug_type": "资源耗尽",
+        "symptoms": [
+          "长期挂测死机",
+          "LWIP内存池耗尽",
+          "堆碎片化",
+          "CoAP发送ASSERT",
+          "pvPortMalloc返回NULL",
+          "DTLS内存消耗"
+        ],
+        "root_cause": "长期挂测中LWIP网络资源(TCP_PCB/NETCONN/PBUF等17个memp池)累积泄漏至100%耗尽，同时堆内存严重碎片化(最大空闲块仅20字节)，CoAP发送时TCP连接建立分配失败触发ASSERT",
+        "call_chain_summary": "coap_task_send_process → coap_socket_connect_tcp1 → pvPortMallocEC → configASSERT(pvReturn!=0) → 死机",
+        "keywords": [
+          "长期挂测死机",
+          "LWIP memp池耗尽",
+          "堆内存碎片化",
+          "CoAP ASSERT",
+          "pvPortMallocEC NULL",
+          "DTLS内存泄漏",
+          "TCP_PCB耗尽",
+          "heap_6 configASSERT"
+        ]
+      }
+    },
+    "6973174788_TCP连接后xiic0去激活概率性死机": {
+      "title": "TCP连接后xiic0去激活概率性死机",
+      "file": "TCP连接后xiic0去激活概率性死机.md",
+      "hash": "d64c5de7f7d8e9f3fe09ce764ea4a5e4",
+      "archived_at": "2026-06-11T19:38:56.979443",
+      "source_files": [
+        "Dump分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWIP/PSIF",
+        "bug_type": "时序竞争",
+        "symptoms": [
+          "TCP连接",
+          "xiic去激活",
+          "概率性死机",
+          "ASSERT",
+          "PsifSuspendInd"
+        ],
+        "root_cause": "TCP连接活跃期间TCPIP_MSG_API池耗尽，xiic=0去激活时PSIF状态机未正确转换，协议栈在PsifSuspendInd中检测到状态不一致触发ASSERT",
+        "call_chain_summary": "CeUpTaskEntry → CedrProcBearerResumeIndSig → PsifSuspendInd → ASSERT",
+        "keywords": [
+          "TCP连接死机",
+          "xiic去激活",
+          "PsifSuspendInd",
+          "TCPIP_MSG_API耗尽",
+          "PSIF状态不一致",
+          "概率性ASSERT",
+          "LWIP内存池",
+          "承载去激活"
+        ]
+      }
+    },
+    "6974267507_UDP链路未关闭": {
+      "title": "UDP链路未关闭",
+      "file": "UDP链路未关闭.md",
+      "hash": "949587850c4d98d89b716481dc52090e",
+      "archived_at": "2026-06-11T19:38:56.992802",
+      "source_files": [
+        "Bug分析.md",
+        "修改方案.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "UDP/LWIP/NWY框架",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "COPS=2后UDP未关闭",
+          "CFUN=4后socket残留",
+          "UDPSETUP ERROR1",
+          "UDP链路未清理",
+          "bearer释放路径缺陷"
+        ],
+        "root_cause": "COPS=2/CFUN=4的bearer释放路径仅设置OOS标志位，未调用nwy_dsnet_status_adpt_rtos触发NWY框架的nwy_plat_net_cb_g回调，导致UDP socket未被清理而保持OPENED状态",
+        "call_chain_summary": "AT+COPS=2/CFUN=4 → bearer释放 → netif_enable_oos_state → udp_netif_enter_oos_state(仅设标志) → 未触发nwy_plat_net_cb_g → socket未关闭",
+        "keywords": [
+          "UDP socket未关闭",
+          "COPS=2 UDP残留",
+          "CFUN=4 UDP链路",
+          "nwy_plat_net_cb_g",
+          "nwy_dsnet_status_adpt_rtos",
+          "OOS标志位",
+          "UDPSETUP ERROR1",
+          "bearer释放socket清理"
+        ]
+      }
+    },
+    "AT_CTM2MREG定时器未停止": {
+      "title": "AT_CTM2MREG定时器未停止",
+      "file": "AT_CTM2MREG定时器未停止.md",
+      "hash": "655701ce62427e1860d5cffb3f74fdea",
+      "archived_at": "2026-06-11T19:38:57.056610",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "CTM2M/LWM2M",
+        "bug_type": "时序竞争",
+        "symptoms": [
+          "定时器未停止",
+          "xQueueSend失败",
+          "pending队列溢出",
+          "守护定时器超时"
+        ],
+        "root_cause": "AT+CTM2MREG异步命令中xQueueSend返回值未检查，消息入队失败时定时器回调永不触发导致定时器直到超时才停止",
+        "call_chain_summary": "atcProcAtCmd → atec_CTM2MREG_proc → ctlwm2m_client_reg → xQueueSend(返回值未检查)",
+        "keywords": [
+          "CTM2MREG",
+          "定时器未停止",
+          "xQueueSend",
+          "pending队列溢出",
+          "guard timer",
+          "异步命令",
+          "AT命令超时"
+        ]
+      }
+    },
+    "CeuTask_ASSERT_PsifSuspendInd": {
+      "title": "CeuTask_ASSERT_PsifSuspendInd",
+      "file": "CeuTask_ASSERT_PsifSuspendInd.md",
+      "hash": "6d1adfaa8eae09a685ccd8cdb6f94546",
+      "archived_at": "2026-06-11T19:38:57.060710",
+      "source_files": [
+        "Dump分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "PS/LWIP",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "CeuTask ASSERT",
+          "PsifSuspendInd",
+          "Bearer Resume",
+          "EC_ASSERT",
+          "协议栈崩溃"
+        ],
+        "root_cause": "PS协议栈Bearer Resume流程中CedrProcBearerResumeIndSig调用PsifSuspendInd时内部断言条件不满足触发EC_ASSERT",
+        "call_chain_summary": "CeUpTaskEntry → CedrProcBearerResumeIndSig → PsifSuspendInd → EC_ASSERT",
+        "keywords": [
+          "CeuTask",
+          "PsifSuspendInd",
+          "ASSERT",
+          "Bearer Resume",
+          "PS协议栈",
+          "dump分析",
+          "EC_ASSERT",
+          "libpsif"
+        ]
+      }
+    },
+    "CoAPOPTION返回ERROR": {
+      "title": "CoAPOPTION返回ERROR",
+      "file": "CoAPOPTION返回ERROR.md",
+      "hash": "4a1b254b7322c82bb94c6fadc3d1d5c4",
+      "archived_at": "2026-06-11T19:38:57.132548",
+      "source_files": [
+        "Bug分析.md",
+        "修改方案.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "CoAP",
+        "bug_type": "参数错误",
+        "symptoms": [
+          "COAPOPTION ERROR",
+          "Uri-Port",
+          "strlen校验",
+          "端口号被拒绝",
+          "选项值校验"
+        ],
+        "root_cause": "coap_config_client函数中COAP_OPTION_URI_PORT分支使用strlen校验十进制字符串长度而非数值范围，导致三位数及以上合法端口号被错误拒绝",
+        "call_chain_summary": "coapOPTION → coap_client_option → coap_task_send_process → coap_config_client → strlen校验(BUG)",
+        "keywords": [
+          "COAPOPTION",
+          "Uri-Port",
+          "strlen校验",
+          "参数错误",
+          "option value",
+          "CoAP选项",
+          "端口号ERROR",
+          "at_coap_task"
+        ]
+      }
+    },
+    "DNSSERVER无效地址校验缺失": {
+      "title": "DNSSERVER无效地址校验缺失",
+      "file": "DNSSERVER无效地址校验缺失.md",
+      "hash": "06383506d9f160be5746626dcb9ff872",
+      "archived_at": "2026-06-11T19:38:57.188814",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "DNS",
+        "bug_type": "参数错误",
+        "symptoms": [
+          "无效IP地址",
+          "返回OK",
+          "NVM写入",
+          "inet_addr未校验"
+        ],
+        "root_cause": "nwy_dss_inet_aton()函数调用inet_addr()解析IP地址后未检查返回值是否为INADDR_NONE，始终返回成功，导致无效IP地址通过校验链被写入NVM",
+        "call_chain_summary": "ATC_ProcessDNSSERVER → nwy_app_at_dnsserver_func → nwy_dss_inet_aton → nwy_app_set_dns_server",
+        "keywords": [
+          "DNS",
+          "DNSSERVER",
+          "无效地址",
+          "IP校验",
+          "inet_addr",
+          "INADDR_NONE",
+          "参数校验缺失",
+          "AT命令"
+        ]
+      }
+    },
+    "DNSSERVER设置dns2实际写入dns1": {
+      "title": "DNSSERVER设置dns2实际写入dns1",
+      "file": "DNSSERVER设置dns2实际写入dns1.md",
+      "hash": "6608e0f1023b4f073d41cbae82952239",
+      "archived_at": "2026-06-11T19:38:57.208067",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWIP/DNS",
+        "bug_type": "参数错误",
+        "symptoms": [
+          "DNSSERVER",
+          "dns2写入dns1",
+          "index参数未使用",
+          "NVM覆盖",
+          "垃圾数据"
+        ],
+        "root_cause": "nwy_app_set_dns_server函数接收index参数但从未使用，始终将IP写入ipv4Dns[0]，且dnsCfg局部变量未从NVM读取当前配置导致另一DNS槽位被栈上垃圾数据覆盖",
+        "call_chain_summary": "nwy_app_at_dnsserver_func → nwy_app_set_dns_server(index未使用) → mwSetAndSaveDefaultDnsConfig(整体覆盖)",
+        "keywords": [
+          "DNSSERVER",
+          "dns2写入dns1",
+          "index参数",
+          "NVM覆盖",
+          "DNS配置",
+          "nwy_platform",
+          "MidWareDefaultDnsCfg",
+          "垃圾数据"
+        ]
+      }
+    },
+    "LWM2MCREATE_AT命令ERROR": {
+      "title": "LWM2MCREATE_AT命令ERROR",
+      "file": "LWM2MCREATE_AT命令ERROR.md",
+      "hash": "6e2c5e6bb09cc0fc1c0dd55576c9b5a5",
+      "archived_at": "2026-06-11T19:38:57.255769",
+      "source_files": [
+        "Bug分析.md",
+        "LWM2MCREATE_AT命令返回ERROR.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWM2M",
+        "bug_type": "参数错误",
+        "symptoms": [
+          "AT命令ERROR",
+          "handler未找到",
+          "宏未启用",
+          "LWM2MCREATE"
+        ],
+        "root_cause": "FEATURE_WAKAAMA_ENABLE宏在CFLAGS中被注释掉，导致AT命令表中未注册+LWM2MCREATE处理函数，AT解码器找不到对应handler直接返回ERROR",
+        "call_chain_summary": "atcProcAtCmd → atcFindPreDefinedAtInfo → 返回PNULL → ATC_DEC_SYNTAX_ERR",
+        "keywords": [
+          "LWM2MCREATE",
+          "ERROR",
+          "handler未注册",
+          "FEATURE_WAKAAMA_ENABLE",
+          "宏配置缺失",
+          "AT命令表",
+          "条件编译",
+          "wakaama"
+        ]
+      }
+    },
+    "LWM2M加密连接REGISTER TIMEOUT": {
+      "title": "LWM2M加密连接REGISTER TIMEOUT",
+      "file": "LWM2M加密连接REGISTER TIMEOUT.md",
+      "hash": "3643cfcec28585466e95769b9238b370",
+      "archived_at": "2026-06-11T19:38:57.322277",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "CoAP/LWM2M",
+        "bug_type": "超时",
+        "symptoms": [
+          "REGISTER TIMEOUT",
+          "DTLS",
+          "PSK",
+          "加密连接超时",
+          "握手失败"
+        ],
+        "root_cause": "DTLS PSK加密连接时，connection_create()中DTLS握手在后续connection_send()时才隐式触发，PSK凭据不匹配或DTLS版本不兼容导致握手失败，Register请求无法发出，事务超时触发REGISTER TIMEOUT",
+        "call_chain_summary": "lwm2mCREATE → lwm2mConnectServer → connection_create → connection_send → dtls_write → 握手失败 → REGISTER TIMEOUT",
+        "keywords": [
+          "LWM2M",
+          "DTLS",
+          "PSK",
+          "REGISTER TIMEOUT",
+          "加密连接",
+          "coaps",
+          "TinyDTLS",
+          "握手失败"
+        ]
+      }
+    },
+    "MQTT_SSL双向认证内存分配崩溃": {
+      "title": "MQTT_SSL双向认证内存分配崩溃",
+      "file": "MQTT_SSL双向认证内存分配崩溃.md",
+      "hash": "0f12d62cdcb0265cf847adace1127b2a",
+      "archived_at": "2026-06-11T19:38:57.380055",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "MQTT",
+        "bug_type": "资源耗尽",
+        "symptoms": [
+          "Assert崩溃",
+          "SSL双向认证",
+          "内存不足",
+          "ECC运算",
+          "mqttSend任务"
+        ],
+        "root_cause": "SSL双向认证握手过程中ECC椭圆曲线密码运算需要大量动态内存，系统剩余内存仅约1KB，pvPortMallocEC分配失败时使用configASSERT导致系统崩溃而非返回NULL让上层处理",
+        "call_chain_summary": "mbedtls_ssl_handshake → ecp_normalize_jac_many → mbedtls_mpi_mul_mpi → mbedtls_mpi_grow → calloc → pvPortMallocEC → configASSERT",
+        "keywords": [
+          "MQTT",
+          "SSL",
+          "双向认证",
+          "内存不足",
+          "OOM",
+          "Assert",
+          "ECC",
+          "mbedtls",
+          "pvPortMallocEC",
+          "崩溃"
+        ]
+      }
+    },
+    "MQTT_SSL双向认证连接失败": {
+      "title": "MQTT_SSL双向认证连接失败",
+      "file": "MQTT_SSL双向认证连接失败.md",
+      "hash": "e659889b3b57eed91e202e2b57ab4862",
+      "archived_at": "2026-06-11T19:38:57.383736",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "MQTT/SSL",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "ECMTCONN失败",
+          "SSL上下文丢失",
+          "重复URC",
+          "订阅ERROR"
+        ],
+        "root_cause": "ECMTOPEN阶段建立的SSL连接状态未正确传递到ECMTCONN阶段，导致ECMTCONN重新建立TCP连接时丢失SSL上下文，MQTT报文可能以明文发送到SSL端口被服务器拒绝",
+        "call_chain_summary": "mqttCONN() → mqtt_client_connect() → mqtt_send_task() → mqttConnectSocket() → 重建TCP(SSL丢失)",
+        "keywords": [
+          "MQTT SSL",
+          "双向认证",
+          "ECMTCONN失败",
+          "SSL上下文丢失",
+          "ECMTOPEN",
+          "mbedTLS",
+          "状态传递缺陷",
+          "MQTT连接失败"
+        ]
+      }
+    },
+    "MQTT_SSL连接成功但MQTTConnect失败": {
+      "title": "MQTT_SSL连接成功但MQTTConnect失败",
+      "file": "MQTT_SSL连接成功但MQTTConnect失败.md",
+      "hash": "ede70583a57fe19f7ab9d5dd4d637a96",
+      "archived_at": "2026-06-11T19:38:57.391746",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "MQTT",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "SSL连接成功",
+          "MQTTConnect失败",
+          "CONNACK未等待",
+          "连接立即关闭"
+        ],
+        "root_cause": "mqttConnectWithResults()函数中等待CONNACK的代码被#if 0注释掉，导致发送CONNECT后立即返回且返回值被误判为失败，触发连接关闭逻辑",
+        "call_chain_summary": "mqttCONN() → mqttSendTask() → mqttConnectClient() → mqttConnect() → mqttConnectWithResults() → 跳过CONNACK → lwip_close",
+        "keywords": [
+          "MQTT Connect失败",
+          "CONNACK",
+          "#if 0",
+          "SSL连接成功",
+          "mqttConnectWithResults",
+          "返回值错误",
+          "MQTT_CREATE_CLIENT_ERROR",
+          "连接关闭"
+        ]
+      }
+    },
+    "NWBLEPSTR返回ERROR": {
+      "title": "NWBLEPSTR返回ERROR",
+      "file": "NWBLEPSTR返回ERROR.md",
+      "hash": "4c18cf65f4743003d0522b6d336734e1",
+      "archived_at": "2026-06-11T19:38:57.447475",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "BLE",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "NWBLEPSTR返回ERROR",
+          "BLE芯片无响应",
+          "HCI超时",
+          "UART通信200ms超时"
+        ],
+        "root_cause": "执行NWBLEPSTR前未执行AT+NWBTBLEPWR=1初始化BLE芯片（或初始化不完整），YC1323芯片未就绪导致HCI命令无响应，read()在200ms超时后返回0触发ERROR",
+        "call_chain_summary": "AT_CmdFunc_NWY_NWBLEPSTR() → BT_AddBleService() → ble_yc_cmd() → UART send → UART read(200ms超时) → return 0 → ERROR",
+        "keywords": [
+          "NWBLEPSTR",
+          "BLE ERROR",
+          "YC1323",
+          "HCI无响应",
+          "NWBTBLEPWR",
+          "BLE初始化",
+          "UART超时",
+          "BLE芯片未就绪"
+        ]
+      }
+    },
+    "TCP_RECVMODE0_收不到数据断连": {
+      "title": "TCP_RECVMODE0_收不到数据断连",
+      "file": "TCP_RECVMODE0_收不到数据断连.md",
+      "hash": "411b9460ba832ba92556fe447f674e07",
+      "archived_at": "2026-06-11T19:38:57.451160",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWIP/TCP",
+        "bug_type": "资源耗尽",
+        "symptoms": [
+          "RECVMODE=0",
+          "收不到数据",
+          "TCP窗口归零",
+          "RST断连",
+          "缓冲区暂停"
+        ],
+        "root_cause": "RECVMODE=0手动接收模式下应用层recv_buff缓冲区过小（2920字节），仅读取2包数据后即触发buff_reach_thred暂停读取，数据堆积在lwIP内核缓冲区导致TCP接收窗口逐渐归零，远端发送RST断开连接",
+        "call_chain_summary": "_lwip_sock_evt() → trig_sock_event() → fwk_event_loop() → socket_event() → buff_reach_thred()=true → deselect暂停 → lwIP缓冲区满 → RST断连",
+        "keywords": [
+          "RECVMODE=0",
+          "TCP收不到数据",
+          "recv_buff缓冲区过小",
+          "TCP窗口归零",
+          "buff_reach_thred",
+          "手动接收模式",
+          "deselect暂停",
+          "RST断连"
+        ]
+      }
+    },
+    "TCP连接XIIC0去激活死机": {
+      "title": "TCP连接XIIC0去激活死机",
+      "file": "TCP连接XIIC0去激活死机.md",
+      "hash": "7cba8812a6b4013674e4331dd9502d7a",
+      "archived_at": "2026-06-11T19:38:57.501475",
+      "source_files": [
+        "Bug分析.md",
+        "解决方案.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWIP/TCP",
+        "bug_type": "时序竞争",
+        "symptoms": [
+          "XIIC=0去激活",
+          "卡死死机",
+          "三方死锁",
+          "type 9内存池耗尽",
+          "EC_ASSERT"
+        ],
+        "root_cause": "AT+XIIC=0去激活时≥3个TCP socket关闭产生大量_lwip_sock_evt事件以portMAX_DELAY投递到容量仅20的sock_event_queue，而唯一能消费该队列的fwk_event_loop正同步执行nwy_dsnet_down_clear_all持锁阻塞在lwip_close等待，形成三方死锁导致tcpip_thread停止处理消息，type 9内存池耗尽后PSIF状态异常触发PsifSuspendInd断言死机",
+        "call_chain_summary": "nwy_dsnet_deactive() → nwy_dsnet_down_clear_all() → close_socket() → lwip_close() → _lwip_sock_evt() → xQueueSend(portMAX_DELAY阻塞) → 三方死锁 → type 9耗尽 → PsifSuspendInd ASSERT",
+        "keywords": [
+          "XIIC去激活死机",
+          "三方死锁",
+          "sock_event_queue满",
+          "portMAX_DELAY阻塞",
+          "type 9内存池耗尽",
+          "PsifSuspendInd ASSERT",
+          "tcpip_thread停滞",
+          "EC626死机"
+        ]
+      }
+    },
+    "UART_RX_FIFO超时pending节点溢出": {
+      "title": "UART_RX_FIFO超时pending节点溢出",
+      "file": "UART_RX_FIFO超时pending节点溢出.md",
+      "hash": "68c5b0b0332fbcf7ae513fa29348c499",
+      "archived_at": "2026-06-11T19:38:57.507497",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "UART/AT解码器",
+        "bug_type": "缓冲区溢出",
+        "symptoms": [
+          "too much pending AT input",
+          "逐字节接收",
+          "pending节点溢出",
+          "Doze低功耗",
+          "长数据AT命令"
+        ],
+        "root_cause": "UART长数据逐字节接收，每个字节触发独立中断和信号后系统立即进入Doze，pending队列节点快速累积超过上限64导致溢出丢弃",
+        "call_chain_summary": "UART DMA中断 → SIG_AT_CMD_STR_REQ → pending队列累积 → 队列溢出(>64) → 丢弃所有数据",
+        "keywords": [
+          "pending节点溢出",
+          "UART逐字节接收",
+          "too much pending AT input",
+          "AT解码器pending",
+          "Doze模式",
+          "CTM2MSEND",
+          "DMA接收缓冲区",
+          "pendingNodeNum"
+        ]
+      }
+    },
+    "UDP连接PSM模式": {
+      "title": "UDP连接PSM模式",
+      "file": "UDP连接PSM模式.md",
+      "hash": "271a0cadfe95ede29912df65093d1733",
+      "archived_at": "2026-06-11T19:38:57.512704",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "UDP/Socket管理",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "PSM退出后UDP断开",
+          "HIB Exit后DISCONNECT",
+          "需重新建立连接",
+          "hibCheck未注册",
+          "socket上下文未保存"
+        ],
+        "root_cause": "标准UDP AT指令(AT+UDPSETUP)使用ATSKT来源socket，未注册hibCheck回调导致hibEnable=FALSE，PSM进入时socket上下文不保存到AON区域，退出后连接状态丢失",
+        "call_chain_summary": "AT+UDPSETUP → ATSKT(hibCheck=NULL) → cmsSockMgr(hibEnable=FALSE) → PSM进入不保存上下文 → PSM退出后DISCONNECT",
+        "keywords": [
+          "UDP PSM恢复",
+          "HIB Exit UDP断开",
+          "ATSKT hibCheck",
+          "cmsSockMgr hibernate",
+          "socket上下文保存",
+          "CoAP LwM2M睡眠管理",
+          "AT+UDPSETUP PSM",
+          "socket来源类型"
+        ]
+      }
+    },
+    "ipv6_udp_ppp_crash": {
+      "title": "ipv6_udp_ppp_crash",
+      "file": "ipv6_udp_ppp_crash.md",
+      "hash": "f0b1a16f2ca1daa7805c4dd92e86f435",
+      "archived_at": "2026-06-11T19:38:57.563076",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "platform": "EC626",
+        "module": "LWIP",
+        "bug_type": "时序竞争",
+        "symptoms": [
+          "卡死",
+          "AT不通",
+          "去激活PPP",
+          "IPv6",
+          "UDP链路",
+          "死锁"
+        ],
+        "root_cause": "AT+XIIC=0去激活流程在AT线程上同步持有互斥锁关闭所有UDP socket，_lwip_sock_evt回调以portMAX_DELAY向容量仅20的事件队列投递事件，而唯一能消费该队列的fwk_event_loop线程被互斥锁阻塞，形成三方死锁",
+        "call_chain_summary": "AT_CmdFunc_NWY_XIIC → nwy_dsnet_down_clear_all → lwip_close → _lwip_sock_evt → xQueueSend(portMAX_DELAY)",
+        "keywords": [
+          "死锁",
+          "deadlock",
+          "XIIC",
+          "PPP去激活",
+          "IPv6",
+          "UDP",
+          "sock_event_queue",
+          "portMAX_DELAY",
+          "互斥锁"
+        ]
+      }
+    }
+  }
+}
