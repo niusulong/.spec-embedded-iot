@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# SessionStart hook for agents plugin
+# Reads using-agents SKILL.md and injects it as additional context
+
+set -euo pipefail
+
+# Determine plugin root directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Read using-agents content
+using_agents_content=$(cat "${PLUGIN_ROOT}/skills/using-agents/SKILL.md" 2>&1 || echo "Error reading using-agents skill")
+
+# Escape string for JSON embedding
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+using_agents_escaped=$(escape_for_json "$using_agents_content")
+session_context="<EXTREMELY_IMPORTANT>\nYou have access to embedded IoT development skills and a persistent knowledge base.\n\n**Below is the full content of your 'using-agents' skill - your guide to using all skills. For other skills, use the 'Skill' tool:**\n\n${using_agents_escaped}\n</EXTREMELY_IMPORTANT>"
+
+# Output context injection as JSON
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  printf '{\n  "additional_context": "%s"\n}\n' "$session_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$session_context"
+fi
+
+exit 0

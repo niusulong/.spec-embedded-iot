@@ -1,0 +1,6 @@
+{
+  "name": "agents",
+  "version": "1.0.0",
+  "type": "module",
+  "main": ".opencode/plugins/agents.js"
+}

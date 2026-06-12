@@ -1,0 +1,30 @@
+{
+  "name": "agents",
+  "version": "1.0.0",
+  "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结、知识库语义检索",
+  "author": {
+    "name": "niusulong"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "embedded",
+    "iot",
+    "bug-analysis",
+    "dump-analysis",
+    "knowledge-base",
+    "neoway"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agents",
+    "shortDescription": "Embedded IoT development skills and knowledge base",
+    "longDescription": "Specialized skills for embedded software development: bug root-cause analysis from logs, ARM crash dump analysis (Cortex-R and Cortex-M), code summarization, persistent knowledge base with vector semantic search, coding standards, and requirement management. Organized by chip platform (EC626, N58, UIS8852).",
+    "developerName": "niusulong",
+    "category": "Embedded",
+    "capabilities": [
+      "Read",
+      "Write",
+      "Interactive"
+    ]
+  }
+}
