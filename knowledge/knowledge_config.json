@@ -1,0 +1,80 @@
+{
+  "version": 3,
+  "doc_types": {
+    "bug": {
+      "source_dir": "bug",
+      "dest_dir": "bug-solutions",
+      "index_columns": {
+        "module": "模块",
+        "symptoms": "症状关键词",
+        "root_cause": "根因方向"
+      },
+      "max_field_lengths": {
+        "root_cause": 60
+      },
+      "summary_section": "结构化摘要",
+      "summary_fields": {
+        "平台": "platform",
+        "模块": "module",
+        "问题分类": "bug_type",
+        "症状关键词": "symptoms",
+        "根因概述": "root_cause",
+        "调用链摘要": "call_chain_summary",
+        "检索关键词": "keywords"
+      },
+      "list_fields": ["symptoms", "keywords"]
+    },
+    "requirement": {
+      "source_dir": "requirement",
+      "dest_dir": "requirement-solutions",
+      "index_columns": {
+        "module": "模块",
+        "summary": "摘要"
+      },
+      "max_field_lengths": {
+        "summary": 80
+      },
+      "summary_section": "结构化摘要",
+      "summary_fields": {
+        "模块": "module",
+        "需求描述": "summary",
+        "优先级": "priority"
+      },
+      "list_fields": []
+    }
+  },
+  "collections": {
+    "bug-solutions": {
+      "strategy": "summary",
+      "sources": ["platform/*/bug-solutions/.archive_meta.json"]
+    },
+    "requirement-solutions": {
+      "strategy": "summary",
+      "sources": ["platform/*/requirement-solutions/.archive_meta.json"]
+    },
+    "code-summary": {
+      "strategy": "markdown_chunks",
+      "sources": ["platform/*/code-summary/**/*.md"],
+      "chunk_size": 1200,
+      "chunk_overlap": 200
+    },
+    "official-docs-md": {
+      "strategy": "markdown_chunks",
+      "sources": ["platform/*/official-docs-md/**/*.md"],
+      "chunk_size": 1500,
+      "chunk_overlap": 200
+    },
+    "project-overview": {
+      "strategy": "markdown_chunks",
+      "sources": ["platform/*/项目概览.md"],
+      "chunk_size": 1000,
+      "chunk_overlap": 100
+    },
+    "protocols": {
+      "strategy": "markdown_chunks",
+      "sources": ["protocols/**/*.md"],
+      "chunk_size": 1500,
+      "chunk_overlap": 200
+    }
+  }
+}
