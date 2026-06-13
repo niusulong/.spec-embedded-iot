@@ -7,7 +7,10 @@
   "plugins": [
     {
       "name": "spec-embedded-iot",
-      "source": "./.claude-plugin",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/niusulong/spec_v2.git"
+      },
       "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结、知识库语义检索，按芯片平台组织",
       "version": "1.0.0",
       "author": {
