@@ -1,0 +1,17 @@
+var searchData=
+[
+  ['rbr',['RBR',['../structOW__TypeDef.html#accfca71a70d94db27eb174de6be4275f',1,'OW_TypeDef']]],
+  ['rdr',['RDR',['../structUSART__TypeDef.html#a8d538b7390289142b70428c5b0af0a18',1,'USART_TypeDef']]],
+  ['reserved_5f0',['RESERVED_0',['../structGPIO__VB1__TypeDef.html#a1ce5e83a0b3bcb02771f031bf7394b6b',1,'GPIO_VB1_TypeDef::RESERVED_0()'],['../structGPIO__TypeDef.html#a2ca221a10cfab7706d1944b807000e34',1,'GPIO_TypeDef::RESERVED_0()'],['../structI2C__TypeDef.html#a1b399b50a01d6bd4dae3c31154b4c88b',1,'I2C_TypeDef::RESERVED_0()'],['../structLPUSARTAON__TypeDef.html#abf2e9c81ada45fe908b2dd0b8ce8eb98',1,'LPUSARTAON_TypeDef::RESERVED_0()']]],
+  ['reserved_5f1',['RESERVED_1',['../structGPIO__VB1__TypeDef.html#a1435397e4a1dc442c5fedea05bd08c3b',1,'GPIO_VB1_TypeDef::RESERVED_1()'],['../structGPIO__TypeDef.html#ad1b0df083943bf8ad31f95733173edee',1,'GPIO_TypeDef::RESERVED_1()'],['../structI2C__TypeDef.html#a1a971a219ea80b4a98e81aca2ec6f564',1,'I2C_TypeDef::RESERVED_1()']]],
+  ['reserved_5f2',['RESERVED_2',['../structI2C__TypeDef.html#a998b11a3d0aa3727653fc34f6b8d0868',1,'I2C_TypeDef']]],
+  ['reserved_5f3',['RESERVED_3',['../structGPIO__VB1__TypeDef.html#a8bc4f2a8c9240237ab2f5f6274930c39',1,'GPIO_VB1_TypeDef::RESERVED_3()'],['../structGPIO__TypeDef.html#adf7619e68260194e489d2bc614ed17de',1,'GPIO_TypeDef::RESERVED_3()'],['../structI2C__TypeDef.html#a6b913807c4ecc662e3acc237d27c94f4',1,'I2C_TypeDef::RESERVED_3()']]],
+  ['result',['RESULT',['../structADC__TypeDef.html#a154ea32dc6940a73d1a1b61b6298d206',1,'ADC_TypeDef']]],
+  ['ris',['RIS',['../structSPI__TypeDef.html#a0325bfa1fec7c645fe03f7c9341d615e',1,'SPI_TypeDef']]],
+  ['risr',['RISR',['../structI2C__TypeDef.html#a041d1eaf4044822cf50530728e8708d9',1,'I2C_TypeDef']]],
+  ['rptcr',['RPTCR',['../structSPI__TypeDef.html#afdc48ed99b07b0ae7d5d913a588fbf65',1,'SPI_TypeDef']]],
+  ['rtcr',['RTCR',['../structOW__TypeDef.html#ac5585565b2a220df0a7550611984d7c5',1,'OW_TypeDef']]],
+  ['rxfcr',['RXFCR',['../structI2C__TypeDef.html#a4ebe24cfd7786c850d0fca2087b0b9f6',1,'I2C_TypeDef']]],
+  ['rxfsr',['RXFSR',['../structI2C__TypeDef.html#a04f881456d6c703e210f2cd59313ed04',1,'I2C_TypeDef']]],
+  ['rxsr',['RXSR',['../structUSART__TypeDef.html#ae2949cb0109df3a515a050158489c47e',1,'USART_TypeDef']]]
+];

@@ -1,0 +1,20 @@
+var searchData=
+[
+  ['hal_5fadc_5fcalibraterawcode',['HAL_ADC_CalibrateRawCode',['../group__hal__adc__interface__gr.html#ga028f215610178fc6c23cf8ed69ffc611',1,'hal_adc.h']]],
+  ['hal_5fadc_5fconvertthermalrawcodetotemperature',['HAL_ADC_ConvertThermalRawCodeToTemperature',['../group__hal__adc__interface__gr.html#ga4fd371a2840d8cff6a6b43996121f1c1',1,'hal_adc.h']]],
+  ['hal_5fadc_5fconvertthermalrawcodetotemperaturehighaccuracy',['HAL_ADC_ConvertThermalRawCodeToTemperatureHighAccuracy',['../group__hal__adc__interface__gr.html#ga50ec0fdf2e5d978b853d7f22e095a0c8',1,'hal_adc.h']]],
+  ['hal_5fadc_5fgetthermaltemperature',['HAL_ADC_GetThermalTemperature',['../group__hal__adc__interface__gr.html#ga4f707a924509f92d368cbbe1f313ec20',1,'hal_adc.h']]],
+  ['hal_5fadc_5fsamplevbatvoltage',['HAL_ADC_SampleVbatVoltage',['../group__hal__adc__interface__gr.html#ga6b987c471b133cfb7a2834926ae64395',1,'hal_adc.h']]],
+  ['hal_5fuart_5fdeinithandler',['HAL_UART_DeInitHandler',['../group__hal__uart__interface__gr.html#ga7b8bd2ffd1b6a4ad6ede55e24ab02a40',1,'hal_uart.h']]],
+  ['hal_5fuart_5fdirectsendstr',['HAL_UART_DirectSendStr',['../group__hal__uart__interface__gr.html#ga0c6e478bfff71b9f153b3d091c58182f',1,'hal_uart.h']]],
+  ['hal_5fuart_5fgetmodemstatus',['HAL_UART_GetModemStatus',['../group__hal__uart__interface__gr.html#ga270097efafcaf8c95cbcc7c5770f6028',1,'hal_uart.h']]],
+  ['hal_5fuart_5finithandler',['HAL_UART_InitHandler',['../group__hal__uart__interface__gr.html#ga0e38a4486639656644eea7f0993373d5',1,'hal_uart.h']]],
+  ['hal_5fuart_5frecvflowcontrol',['HAL_UART_RecvFlowControl',['../group__hal__uart__interface__gr.html#ga40ac65faff9e623caf222be8f480afdb',1,'hal_uart.h']]],
+  ['hal_5fuart_5fresetuartsetting',['HAL_UART_ResetUartSetting',['../group__hal__uart__interface__gr.html#gafbb4362e36667d9c9605dce7e0e70238',1,'hal_uart.h']]],
+  ['hal_5fuart_5fsendmsg',['HAL_UART_SendMsg',['../group__hal__uart__interface__gr.html#gac9d1713aa09fe148ea7156daf19738cf',1,'hal_uart.h']]],
+  ['hal_5fuart_5fsendstr',['HAL_UART_SendStr',['../group__hal__uart__interface__gr.html#ga612270eeef7fb028f9ce9dc644fd7210',1,'hal_uart.h']]],
+  ['hal_5fuart_5fsetmodemcontrol',['HAL_UART_SetModemControl',['../group__hal__uart__interface__gr.html#gabc2912237bb9918a3bfae383a321c764',1,'hal_uart.h']]],
+  ['halcrc32',['halCrc32',['../hal__misc_8h.html#ad1064d01e62dcf7c007d1485fd1e8760',1,'hal_misc.h']]],
+  ['halcrc8',['halCrc8',['../hal__misc_8h.html#ab2a6bb0bc93e75b8ea0ddb84b211ca73',1,'hal_misc.h']]],
+  ['halgetchipid',['halGetChipID',['../hal__misc_8h.html#a47c6816c43376ef0f9789a1477c76f92',1,'hal_misc.h']]]
+];

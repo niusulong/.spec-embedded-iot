@@ -1,0 +1,35 @@
+var group__I2C =
+[
+    [ "I2C_TypeDef", "structI2C__TypeDef.html", [
+      [ "ACKGC", "structI2C__TypeDef.html#acdc6b0a4845a55388ba6114ed5d45970", null ],
+      [ "CLRSCLSTUCKDET", "structI2C__TypeDef.html#a3c49f45e667b8e0158718f6489819893", null ],
+      [ "COMMAND", "structI2C__TypeDef.html#a6aa8e49c282d66dc5fafd605d54dbee9", null ],
+      [ "CR0", "structI2C__TypeDef.html#a9b9cb361a3b5c33b6ef2a706ae8c7b4c", null ],
+      [ "CR1", "structI2C__TypeDef.html#a91782f7b81475b0e3c3779273abd26aa", null ],
+      [ "ICR", "structI2C__TypeDef.html#a491fad2157fa1843f588deb75a36ea9b", null ],
+      [ "IMR", "structI2C__TypeDef.html#a29af9ebce88134d08321703eac7b98e9", null ],
+      [ "MISR", "structI2C__TypeDef.html#ace3e494d83a653e9da4d4beb561b7c83", null ],
+      [ "RESERVED_0", "structI2C__TypeDef.html#a1b399b50a01d6bd4dae3c31154b4c88b", null ],
+      [ "RESERVED_1", "structI2C__TypeDef.html#a1a971a219ea80b4a98e81aca2ec6f564", null ],
+      [ "RESERVED_2", "structI2C__TypeDef.html#a998b11a3d0aa3727653fc34f6b8d0868", null ],
+      [ "RESERVED_3", "structI2C__TypeDef.html#a6b913807c4ecc662e3acc237d27c94f4", null ],
+      [ "RISR", "structI2C__TypeDef.html#a041d1eaf4044822cf50530728e8708d9", null ],
+      [ "RXFCR", "structI2C__TypeDef.html#a4ebe24cfd7786c850d0fca2087b0b9f6", null ],
+      [ "RXFSR", "structI2C__TypeDef.html#a04f881456d6c703e210f2cd59313ed04", null ],
+      [ "SAR", "structI2C__TypeDef.html#a22bdbf75ae65978c11416cf9ab9b131b", null ],
+      [ "SCLCNT", "structI2C__TypeDef.html#a263bad9ad467b54dc75ff2cbd5e5590d", null ],
+      [ "SDAHOLD", "structI2C__TypeDef.html#a3b8f500da53955bd09148cb81c31074b", null ],
+      [ "SDASETUP", "structI2C__TypeDef.html#a499abda1fe7ccae92686f73a835df615", null ],
+      [ "SPKSR", "structI2C__TypeDef.html#aa7fd4889fc27e00c781973405edeb54a", null ],
+      [ "STR0", "structI2C__TypeDef.html#a993a85ee2697c9b69ae9e7991bb90aa0", null ],
+      [ "STR1", "structI2C__TypeDef.html#a068bde82a461b408f2ba58aa108fa1c9", null ],
+      [ "STR2", "structI2C__TypeDef.html#a6dc7ab2b1d7e86a4a314284f9cd8a6ca", null ],
+      [ "STUCKTIMEOUT", "structI2C__TypeDef.html#a5ac9e18ee52c3184b24ee8a7a0e593d1", null ],
+      [ "TAR", "structI2C__TypeDef.html#ac598a6bcd234738b5875a19423891ebb", null ],
+      [ "TXFCR", "structI2C__TypeDef.html#a28b0e7d4a6430fe447c9469f974f07c1", null ],
+      [ "TXFSR", "structI2C__TypeDef.html#a04fa024e04552833ee4ce357d9192558", null ]
+    ] ],
+    [ "I2C0", "group__I2C.html#ga86abb2e8858d177c04e60c41e9242045", null ],
+    [ "I2C1", "group__I2C.html#gab45d257574da6fe1f091cc45b7eda6cc", null ],
+    [ "I2C_INSTANCE_NUM", "group__I2C.html#ga1f68b4e5aacc0e137204015d3c8c605a", null ]
+];

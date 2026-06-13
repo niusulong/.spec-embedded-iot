@@ -1,0 +1,28 @@
+var group__BASE__ADDR =
+[
+    [ "ADC_BASE_ADDR", "group__BASE__ADDR.html#gaacce69eec90f1b87e934e83480b2b087", null ],
+    [ "AON_BASE_ADDR", "group__BASE__ADDR.html#ga3a7927493d2a5092d1495883b3309727", null ],
+    [ "APB_GP_PERIPH_BASE", "group__BASE__ADDR.html#ga19e87d6183cfc1efc3e984a46f961234", null ],
+    [ "APB_MP_PERIPH_BASE", "group__BASE__ADDR.html#gab3760ac77ad3ce2353819a0fb0c0ac75", null ],
+    [ "GPIO_BASE_ADDR", "group__BASE__ADDR.html#ga45d36b41a075f38c101d52a2224aede5", null ],
+    [ "I2C0_BASE_ADDR", "group__BASE__ADDR.html#gaf92536fd2e82cc12a5193ade75b4f23c", null ],
+    [ "I2C1_BASE_ADDR", "group__BASE__ADDR.html#ga1ee2ead8ad06cf308542ac7d8d4be581", null ],
+    [ "LPUSARTAON_BASE_ADDR", "group__BASE__ADDR.html#gafb04639d9c2e7527bfcae3a5b844758d", null ],
+    [ "ONEWIRE_BASE_ADDR", "group__BASE__ADDR.html#ga045e2c83ce920c44966bb8feb0814272", null ],
+    [ "PAD_BASE_ADDR", "group__BASE__ADDR.html#ga5a098f2eb64f6d89432703122edb2434", null ],
+    [ "RMI_AP_PERIPH_BASE", "group__BASE__ADDR.html#ga7d8da704ebad424e75858dcae6b7aa6f", null ],
+    [ "SPI0_BASE_ADDR", "group__BASE__ADDR.html#gab01c0bf45f92131c444196eb762c49c0", null ],
+    [ "SPI1_BASE_ADDR", "group__BASE__ADDR.html#gae8d3966b8f3f2cd9771a8bff397c6794", null ],
+    [ "TIMER0_BASE_ADDR", "group__BASE__ADDR.html#gad3ed2fb8c48fe4b29fda0a35bd6396c5", null ],
+    [ "TIMER1_BASE_ADDR", "group__BASE__ADDR.html#ga99a8fa5d19b7627b0ef9562af676c1ba", null ],
+    [ "TIMER2_BASE_ADDR", "group__BASE__ADDR.html#ga3755ca5adbecf6eb14c06e99d88c8494", null ],
+    [ "TIMER3_BASE_ADDR", "group__BASE__ADDR.html#ga4851f74d3f78b9af234a438393fda728", null ],
+    [ "TIMER4_BASE_ADDR", "group__BASE__ADDR.html#gae3001424a577b4a53f84501b2309b561", null ],
+    [ "TIMER5_BASE_ADDR", "group__BASE__ADDR.html#ga8b5830e8de8abf857504764b0892d7e3", null ],
+    [ "TRNG_BASE_ADDR", "group__BASE__ADDR.html#gaeb85b3d8ddcfb6ea22cdb32dfe0aaca2", null ],
+    [ "USART0_BASE_ADDR", "group__BASE__ADDR.html#gae9e72a5f25600dda30e85aaff50de397", null ],
+    [ "USART1_BASE_ADDR", "group__BASE__ADDR.html#gafb835114c6a6552ca1eb7a792103db4c", null ],
+    [ "USART2_BASE_ADDR", "group__BASE__ADDR.html#ga2998f4d322941566f172342dfb53c983", null ],
+    [ "USART3_BASE_ADDR", "group__BASE__ADDR.html#gaa4dd93a8c45e5fde587745de4dc5662a", null ],
+    [ "WDT_BASE_ADDR", "group__BASE__ADDR.html#ga1555947ea365c994bf9e9068baf58533", null ]
+];
