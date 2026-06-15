@@ -18,16 +18,17 @@
 ### 知识库搜索
 
 ```bash
-python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
+python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
 ```
 
 ## 可用技能
 
 | 技能 | 触发词 | 说明 |
 |------|--------|------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug 根因分析（日志+知识库检索） |
-| `spec-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ARM Cortex-R crash dump 分析（TRACE32） |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（日志+知识库检索，怀疑内存泄漏时转交 spec-memory-leak-analyzer） |
+| `spec-asr-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 crash dump 分析（Cortex-R + ThreadX） |
 | `spec-ec-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 crash dump 分析（Cortex-M + FreeRTOS） |
+| `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码） |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结 |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成 |
 | `spec-init` | spec 初始化、spec 准备环境 | .spec 工作流环境初始化 |

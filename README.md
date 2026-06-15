@@ -25,6 +25,7 @@
 | `spec-neoway-coding-standards` | spec 编码规范、spec 代码规范 | Neoway 嵌入式 C 语言编码规范查询：编码风格、命名规范、注释规范 |
 | `spec-requirement-generator` | spec 整理需求、spec 生成需求文档 | 零散需求（口头描述、会议记录）→ 结构化需求文档 |
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求按功能模块拆分为小需求单元，生成拆分清单 |
+| `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码），覆盖 GCC/ARMCC/IAR/MSVC 工具链 |
 | `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet（天锐绿盾）加密文件透明读写（仅 Windows） |
 | `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
 
@@ -57,7 +58,7 @@ knowledge/
 **知识库搜索**：
 
 ```bash
-python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
+python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
 ```
 
 ## 项目结构
