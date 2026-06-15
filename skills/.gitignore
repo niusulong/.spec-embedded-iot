@@ -1,0 +1,15 @@
+# 非 spec- 开头的技能文件夹（外部/通用技能，不纳入本项目版本管理）
+esafenet-file-io/
+skill-creator/
+docs/
+
+# 点号开头的文件夹（IDE/工具配置，不纳入版本管理）
+.claude/
+.opencode/
+
+# 临时文件
+bash.exe.stackdump
+CLAUDE.md
+
+# Python 缓存
+__pycache__/
