@@ -45,7 +45,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
   Bug分析.md / Dump分析.md
   logs/                   -- 相关日志归档
   dump/                   -- dump 文件归档
-.spec/{工作项ID}_{功能名}/          -- 由 spec-requirement-generator 等技能按需创建
+.spec/requirement/{项目ID}_{功能名}/          -- 由 spec-requirement-generator 等技能按需创建
   需求.md
   实现方案.md
   任务规划.md
@@ -67,7 +67,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
   ├── 项目概览.md
   └── code-summary/  (模块代码总结，按需创建)
 
-项目功能目录（如 .spec/6974423486_MQTT_SSL双向认证/）和 Bug 目录（如 .spec/bug/6974423486_UDP链路未关闭/）由各技能按需创建。
+项目功能目录（如 .spec/requirement/6974423486_MQTT_SSL双向认证/）和 Bug 目录（如 .spec/bug/6974423486_UDP链路未关闭/）由各技能按需创建。
 工作项 ID 必须向用户确认，未提供时需询问。
 现在可以开始使用 Spec 工作流了。
 ```
