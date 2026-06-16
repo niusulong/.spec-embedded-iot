@@ -27,6 +27,7 @@ _DEFAULT_CONFIG = {
             "source_dir": "bug",
             "dest_dir": "bug-solutions",
             "index_columns": {
+                "work_item_id": "工作项ID",
                 "module": "模块",
                 "symptoms": "症状关键词",
                 "root_cause": "根因方向"
@@ -34,6 +35,7 @@ _DEFAULT_CONFIG = {
             "max_field_lengths": {"root_cause": 60},
             "summary_section": "结构化摘要",
             "summary_fields": {
+                "工作项 ID": "work_item_id",
                 "平台": "platform", "模块": "module", "问题分类": "bug_type",
                 "症状关键词": "symptoms", "根因概述": "root_cause",
                 "调用链摘要": "call_chain_summary", "检索关键词": "keywords",
@@ -217,6 +219,12 @@ def extract_title(entry_name):
     """从条目名提取可读标题。4975090277_COAP死机 -> COAP死机"""
     title = re.sub(r"^\d+_", "", entry_name)
     return title if title else entry_name
+
+
+def extract_work_item_id(entry_name):
+    """从条目名提取工作项ID（单号）。6977185133_TCP连接 -> 6977185133；无单号返回 None。"""
+    match = re.match(r"^(\d+)_", entry_name)
+    return match.group(1) if match else None
 
 
 # ── Summary 文本构建（供向量索引用）─────────────────────────

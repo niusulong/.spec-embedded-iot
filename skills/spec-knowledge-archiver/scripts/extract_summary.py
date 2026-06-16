@@ -20,6 +20,7 @@ import sys
 # ── 默认字段映射（向后兼容，无 config 时使用）────────────────
 
 DEFAULT_FIELD_MAP = {
+    "工作项 ID": "work_item_id",
     "平台": "platform",
     "模块": "module",
     "问题分类": "bug_type",

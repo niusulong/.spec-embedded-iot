@@ -69,6 +69,7 @@ def _query_collection(query, collection_name, platform=None, top=5):
             "collection": metadata.get("collection", collection_name),
             "similarity": similarity,
             "title": metadata.get("title", metadata.get("section_title", "")),
+            "work_item_id": metadata.get("work_item_id", ""),
             "platform": metadata.get("platform", ""),
             "file": metadata.get("file", metadata.get("rel_path", "")),
             "module": metadata.get("module", ""),
@@ -113,6 +114,8 @@ def search(query, collections=None, platform=None, top=5, output_json=False):
 
     for i, item in enumerate(all_items, 1):
         print(f"  [{i}] [{item['collection']}] {item['title'] or item['file']}")
+        if item.get('work_item_id'):
+            print(f"      单号: {item['work_item_id']}")
         if item['platform']:
             print(f"      平台: {item['platform']} | 模块: {item['module']} | 相似度: {item['similarity']}")
         if item['root_cause']:
