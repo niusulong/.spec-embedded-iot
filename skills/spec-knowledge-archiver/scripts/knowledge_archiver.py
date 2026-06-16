@@ -33,7 +33,7 @@ from common import (
     load_config, get_doc_type_config,
     infer_platform, get_dest_dir, get_source_dir,
     load_meta, save_meta,
-    safe_filename, extract_title,
+    safe_filename, extract_title, extract_work_item_id,
     atomic_write_text,
 )
 
@@ -105,11 +105,50 @@ def compute_content_hash(entry):
 
 # ── 归档核心逻辑 ─────────────────────────────────────────
 
+def _summary_field_label(doc_type_config, key):
+    """返回 summary_fields 中 key 对应的中文 label（如 work_item_id -> '工作项 ID'），无则 None。"""
+    sf = (doc_type_config or {}).get("summary_fields", {})
+    for label, k in sf.items():
+        if k == key:
+            return label
+    return None
+
+
+def ensure_summary_field_row(content, label, value):
+    """若「结构化摘要」表格缺少 label 行，则在表头分隔线后插入 | **label** | value |。
+    已存在该字段则原样返回（不覆盖已有值）；找不到摘要表格则原样返回。"""
+    lines = content.split("\n")
+    try:
+        head = next(i for i, ln in enumerate(lines)
+                    if re.match(r"^##\s*\d*[\.\s]*结构化摘要\s*$", ln))
+    except StopIteration:
+        return content
+    # 节边界：下一个 ## 标题
+    end = len(lines)
+    for j in range(head + 1, len(lines)):
+        if re.match(r"^##\s", lines[j]):
+            end = j
+            break
+    section = lines[head:end]
+    pat = re.compile(r"\|\s*\*{0,2}\s*" + re.escape(label) + r"\s*\*{0,2}\s*\|")
+    if any(pat.search(ln) for ln in section):
+        return content  # 已有该字段，不覆盖
+    # 找表头分隔线（首个 |---| 行），其后插入
+    try:
+        sep = next(i for i, ln in enumerate(section, start=head)
+                   if re.match(r"^\|[\s:|-]+\|\s*$", ln))
+    except StopIteration:
+        return content  # 无表格，不强制注入
+    lines.insert(sep + 1, f"| **{label}** | {value} |")
+    return "\n".join(lines)
+
+
 def archive_entry(entry, dest_dir, meta, platform, content_hash=None, doc_type_config=None):
     """归档单个条目，返回 (title, output_filename, is_new)。
     content_hash 可传入以避免重复读文件。
     doc_type_config 传给 extract_summary 以支持不同文档类型的摘要提取。"""
     title = extract_title(entry["name"])
+    work_item_id = extract_work_item_id(entry["name"])
     output_file = safe_filename(title, platform)
     output_path = os.path.join(dest_dir, output_file)
 
@@ -122,21 +161,31 @@ def archive_entry(entry, dest_dir, meta, platform, content_hash=None, doc_type_c
 
     existing = meta["entries"].get(entry["name"])
 
-    # 迁移：旧文件名无平台前缀，清理旧文件
-    if existing and existing.get("file") and existing["file"] != output_file:
+    # 文件名是否变更（如新增平台前缀的迁移场景）：变更时必须重写新文件
+    filename_changed = bool(
+        existing and existing.get("file") and existing["file"] != output_file
+    )
+
+    # 内容未变且文件名未变才跳过
+    if existing and not filename_changed and existing.get("hash") == content_hash:
+        return (title, output_file, False)
+
+    # 确保结构化摘要含「工作项 ID」字段：缺失则注入，无单号填 NA
+    wid_label = _summary_field_label(doc_type_config, "work_item_id")
+    if wid_label:
+        merged = ensure_summary_field_row(merged, wid_label, work_item_id or "NA")
+
+    # 原子写入新文件
+    atomic_write_text(output_path, merged)
+
+    # 迁移：新文件写入成功后，再删除旧文件名（避免 hash 命中时删旧却不写新导致丢失）
+    if filename_changed:
         old_path = os.path.join(dest_dir, existing["file"])
-        if os.path.isfile(old_path):
+        if old_path != output_path and os.path.isfile(old_path):
             try:
                 os.remove(old_path)
             except OSError:
                 pass
-
-    # 内容未变则跳过
-    if existing and existing.get("hash") == content_hash:
-        return (title, output_file, False)
-
-    # 原子写入
-    atomic_write_text(output_path, merged)
 
     # 提取结构化摘要
     summary = None
@@ -145,8 +194,14 @@ def archive_entry(entry, dest_dir, meta, platform, content_hash=None, doc_type_c
     except Exception:
         pass
 
+    # 工作项 ID 兜底：摘要缺失则用文件夹单号，再缺失填 NA
+    wid_value = (summary.get("work_item_id") if summary else None) or work_item_id or "NA"
+    if summary:
+        summary["work_item_id"] = wid_value
+
     entry_meta = {
         "title": title,
+        "work_item_id": wid_value,
         "file": output_file,
         "hash": content_hash,
         "archived_at": datetime.now().isoformat(),
