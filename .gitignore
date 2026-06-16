@@ -1,2 +1,9 @@
 # Generated vector database
 knowledge/vector_db/
+
+# 仅追踪 spec-* 技能；其它技能（esafenet-file-io、skill-creator、pdf、docs 等）不入库
+skills/*
+!skills/spec-*/
+
+# 临时/本地文件
+/plan.md

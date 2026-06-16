@@ -1,5 +1,5 @@
 ---
-name: using-agents
+name: spec-using-agents
 description: Use when starting any conversation - establishes how to find and use embedded IoT skills and knowledge base, requiring Skill tool invocation before ANY response including clarifying questions
 ---
 
