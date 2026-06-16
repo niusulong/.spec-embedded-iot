@@ -13,7 +13,7 @@ author: niusulong
 ### Step 1：读取原始需求文档
 
 1. 提示用户提供待拆分的需求文档路径
-   - 默认目录：`.spec/{工作项ID}_{功能名}/`（查找 `需求.md`）
+   - 默认目录：`.spec/requirement/{项目ID}_{功能名}/`（查找 `需求.md`）
    - 用户未提供时，询问是否有依赖文档；如无，基于已有信息继续执行
 
 2. 读取需求文档，理解需求内容
@@ -54,8 +54,8 @@ author: niusulong
 
 ### Step 6：生成输出文档
 
-- **拆分清单**：`.spec/{工作项ID}_{功能名}/拆分清单.md`（使用 `references/split-checklist-template.md` 模板）
-- **子需求文档**：`.spec/{工作项ID}_{功能名}/{子需求名}/需求.md`（询问用户是否需要生成）
+- **拆分清单**：`.spec/requirement/{项目ID}_{功能名}/拆分清单.md`（使用 `references/split-checklist-template.md` 模板），与原始 `需求.md` 同目录
+- **子需求文档**：每个子需求作为独立的顶层条目 `.spec/requirement/{项目ID}_{子需求名}/需求.md`（询问用户是否需要生成）；子需求文档沿用 `spec-requirement-generator` 的需求模板（含「## 0. 结构化摘要」：项目 ID / 模块 / 需求描述 / 优先级），以便各自独立归档
 
 ## 参考文档
 
