@@ -9,6 +9,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "CoAP/libcoap/堆内存",
         "bug_type": "资源耗尽",
@@ -38,7 +39,8 @@
           "CoAP close循环",
           "内存耗尽死机"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "6891620297_长期挂测挂测900多次出现死机": {
       "title": "长期挂测挂测900多次出现死机",
@@ -49,6 +51,7 @@
         "Dump分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "CoAP/LWIP/堆内存",
         "bug_type": "资源耗尽",
@@ -72,7 +75,8 @@
           "TCP_PCB耗尽",
           "heap_6 configASSERT"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "6973174788_TCP连接后xiic0去激活概率性死机": {
       "title": "TCP连接后xiic0去激活概率性死机",
@@ -83,6 +87,7 @@
         "Dump分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWIP/PSIF",
         "bug_type": "时序竞争",
@@ -105,7 +110,8 @@
           "LWIP内存池",
           "承载去激活"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "6974267507_UDP链路未关闭": {
       "title": "UDP链路未关闭",
@@ -117,6 +123,7 @@
         "修改方案.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "UDP/LWIP/NWY框架",
         "bug_type": "状态机异常",
@@ -139,7 +146,8 @@
           "UDPSETUP ERROR1",
           "bearer释放socket清理"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "AT_CTM2MREG定时器未停止": {
       "title": "AT_CTM2MREG定时器未停止",
@@ -150,6 +158,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "CTM2M/LWM2M",
         "bug_type": "时序竞争",
@@ -170,7 +179,8 @@
           "异步命令",
           "AT命令超时"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "CeuTask_ASSERT_PsifSuspendInd": {
       "title": "CeuTask_ASSERT_PsifSuspendInd",
@@ -181,6 +191,7 @@
         "Dump分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "PS/LWIP",
         "bug_type": "状态机异常",
@@ -203,7 +214,8 @@
           "EC_ASSERT",
           "libpsif"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "CoAPOPTION返回ERROR": {
       "title": "CoAPOPTION返回ERROR",
@@ -215,6 +227,7 @@
         "修改方案.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "CoAP",
         "bug_type": "参数错误",
@@ -237,7 +250,8 @@
           "端口号ERROR",
           "at_coap_task"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "DNSSERVER无效地址校验缺失": {
       "title": "DNSSERVER无效地址校验缺失",
@@ -248,6 +262,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "DNS",
         "bug_type": "参数错误",
@@ -269,7 +284,8 @@
           "参数校验缺失",
           "AT命令"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "DNSSERVER设置dns2实际写入dns1": {
       "title": "DNSSERVER设置dns2实际写入dns1",
@@ -280,6 +296,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWIP/DNS",
         "bug_type": "参数错误",
@@ -302,7 +319,8 @@
           "MidWareDefaultDnsCfg",
           "垃圾数据"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "LWM2MCREATE_AT命令ERROR": {
       "title": "LWM2MCREATE_AT命令ERROR",
@@ -314,6 +332,7 @@
         "LWM2MCREATE_AT命令返回ERROR.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWM2M",
         "bug_type": "参数错误",
@@ -335,7 +354,8 @@
           "条件编译",
           "wakaama"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "LWM2M加密连接REGISTER TIMEOUT": {
       "title": "LWM2M加密连接REGISTER TIMEOUT",
@@ -346,6 +366,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "CoAP/LWM2M",
         "bug_type": "超时",
@@ -368,7 +389,8 @@
           "TinyDTLS",
           "握手失败"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "MQTT_SSL双向认证内存分配崩溃": {
       "title": "MQTT_SSL双向认证内存分配崩溃",
@@ -379,6 +401,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "MQTT",
         "bug_type": "资源耗尽",
@@ -403,7 +426,8 @@
           "pvPortMallocEC",
           "崩溃"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "MQTT_SSL双向认证连接失败": {
       "title": "MQTT_SSL双向认证连接失败",
@@ -414,6 +438,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "MQTT/SSL",
         "bug_type": "状态机异常",
@@ -435,7 +460,8 @@
           "状态传递缺陷",
           "MQTT连接失败"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "MQTT_SSL连接成功但MQTTConnect失败": {
       "title": "MQTT_SSL连接成功但MQTTConnect失败",
@@ -446,6 +472,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "MQTT",
         "bug_type": "状态机异常",
@@ -467,7 +494,8 @@
           "MQTT_CREATE_CLIENT_ERROR",
           "连接关闭"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "NWBLEPSTR返回ERROR": {
       "title": "NWBLEPSTR返回ERROR",
@@ -478,6 +506,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "BLE",
         "bug_type": "状态机异常",
@@ -499,7 +528,8 @@
           "UART超时",
           "BLE芯片未就绪"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "TCP_RECVMODE0_收不到数据断连": {
       "title": "TCP_RECVMODE0_收不到数据断连",
@@ -510,6 +540,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWIP/TCP",
         "bug_type": "资源耗尽",
@@ -532,7 +563,8 @@
           "deselect暂停",
           "RST断连"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "TCP连接XIIC0去激活死机": {
       "title": "TCP连接XIIC0去激活死机",
@@ -544,6 +576,7 @@
         "解决方案.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWIP/TCP",
         "bug_type": "时序竞争",
@@ -566,7 +599,8 @@
           "tcpip_thread停滞",
           "EC626死机"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "UART_RX_FIFO超时pending节点溢出": {
       "title": "UART_RX_FIFO超时pending节点溢出",
@@ -577,6 +611,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "UART/AT解码器",
         "bug_type": "缓冲区溢出",
@@ -599,7 +634,8 @@
           "DMA接收缓冲区",
           "pendingNodeNum"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "UDP连接PSM模式": {
       "title": "UDP连接PSM模式",
@@ -610,6 +646,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "UDP/Socket管理",
         "bug_type": "状态机异常",
@@ -632,7 +669,8 @@
           "AT+UDPSETUP PSM",
           "socket来源类型"
         ]
-      }
+      },
+      "work_item_id": "NA"
     },
     "ipv6_udp_ppp_crash": {
       "title": "ipv6_udp_ppp_crash",
@@ -643,6 +681,7 @@
         "Bug分析.md"
       ],
       "summary": {
+        "work_item_id": "NA",
         "platform": "EC626",
         "module": "LWIP",
         "bug_type": "时序竞争",
@@ -666,6 +705,43 @@
           "sock_event_queue",
           "portMAX_DELAY",
           "互斥锁"
+        ]
+      },
+      "work_item_id": "NA"
+    },
+    "6977185133_TCP连接PSM唤醒后需重新XIIC拨号": {
+      "title": "TCP连接PSM唤醒后需重新XIIC拨号",
+      "work_item_id": "6977185133",
+      "file": "EC626_TCP连接PSM唤醒后需重新XIIC拨号.md",
+      "hash": "1c94744a4d2bfbcd8b8e1acb0e296bb2",
+      "archived_at": "2026-06-15T19:08:29.651236",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "work_item_id": "6977185133",
+        "platform": "EC626",
+        "module": "NWY框架/数据通道管理 (TCP)",
+        "bug_type": "状态机异常",
+        "symptoms": [
+          "PSM唤醒后TCP连接失败",
+          "HIB Exit后TCPSETUP ERROR",
+          "需重新XIIC拨号",
+          "dsnet未重建",
+          "NWY_APP_ERR_DSNET_NOT_ACTIVE"
+        ],
+        "root_cause": "HIBERNATE 唤醒后 16KB Retention SRAM 全部掉电，NWY 框架运行时 dsnet 状态（RAM 中）丢失，TCPSETUP 的 socket_check 检测到 dsnet 未 UP 直接返回 ERROR，需 AT+XIIC=1 重新调用 nwy_app_open_channel 重建数据通道",
+        "call_chain_summary": "AT+TCPSETUP → nwy_app_tcp_client_setup → nwy_app_socket_check → nwy_dsnet_is_up()==FALSE → NWY_APP_ERR_DSNET_NOT_ACTIVE → ERROR；AT+XIIC=1 → nwy_app_open_channel + nwy_dsnet_status_adpt_rtos(1,1) → dsnet UP → TCPSETUP 成功",
+        "keywords": [
+          "PSM 唤醒 TCP失败",
+          "HIB Exit TCPSETUP ERROR",
+          "AT+XIIC=1 重新拨号",
+          "dsnet未重建",
+          "NWY_APP_ERR_DSNET_NOT_ACTIVE",
+          "nwy_app_socket_check",
+          "nwy_dsnet_is_up",
+          "HIBERNATE 唤醒 dsnet状态丢失",
+          "EC626 低功耗恢复"
         ]
       }
     }

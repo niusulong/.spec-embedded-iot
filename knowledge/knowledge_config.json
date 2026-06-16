@@ -5,6 +5,7 @@
       "source_dir": "bug",
       "dest_dir": "bug-solutions",
       "index_columns": {
+        "work_item_id": "工作项ID",
         "module": "模块",
         "symptoms": "症状关键词",
         "root_cause": "根因方向"
@@ -14,6 +15,7 @@
       },
       "summary_section": "结构化摘要",
       "summary_fields": {
+        "工作项 ID": "work_item_id",
         "平台": "platform",
         "模块": "module",
         "问题分类": "bug_type",
