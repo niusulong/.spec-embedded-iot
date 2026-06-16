@@ -67,24 +67,46 @@ def list_entries(source_dir):
 
 
 def merge_md_files(entry):
-    """合并一个条目下所有 md 文件为一个文档"""
-    sections = []
+    """合并一个条目下所有 md 文件为一个文档。
+
+    主文档置顶规则：含「结构化摘要」节的文档作为主文档排在首位（文件名
+    随意，适配需求文档/方案等多文件场景）；若无，则兼容旧主文件名
+    (Bug分析.md/需求分析.md)。主文档原样保留，其余文档作为分节拼接。
+    """
+    items = []
     for md_file in entry["md_files"]:
         filepath = os.path.join(entry["path"], md_file)
         with open(filepath, "r", encoding="utf-8", errors="replace") as f:
             content = f.read().strip()
         if content:
-            # 主文件直接用，其他文件加标题
-            if md_file in ("Bug分析.md", "需求分析.md"):
+            items.append((md_file, content))
+    if not items:
+        return None
+
+    summary_re = re.compile(r"^##\s*\d*[\.\s]*结构化摘要", re.MULTILINE)
+    primary_idx = next(
+        (i for i, (_, c) in enumerate(items) if summary_re.search(c)), None
+    )
+
+    def order_key(i):
+        md_file = items[i][0]
+        if primary_idx is not None:
+            return (0,) if i == primary_idx else (1, i)
+        return (0,) if md_file in ("Bug分析.md", "需求分析.md") else (1, i)
+
+    ordered = sorted(range(len(items)), key=order_key)
+
+    sections = []
+    for pos, i in enumerate(ordered):
+        md_file, content = items[i]
+        if pos == 0:
+            sections.append(content)  # 主文档原样
+        else:
+            section_title = os.path.splitext(md_file)[0]
+            if content.startswith("#"):
                 sections.append(content)
             else:
-                section_title = os.path.splitext(md_file)[0]
-                if content.startswith("#"):
-                    sections.append(content)
-                else:
-                    sections.append(f"## {section_title}\n\n{content}")
-    if not sections:
-        return None
+                sections.append(f"## {section_title}\n\n{content}")
     if len(sections) == 1:
         return sections[0]
     merged = sections[0]

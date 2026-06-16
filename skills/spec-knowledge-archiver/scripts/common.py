@@ -45,10 +45,10 @@ _DEFAULT_CONFIG = {
         "requirement": {
             "source_dir": "requirement",
             "dest_dir": "requirement-solutions",
-            "index_columns": {"module": "模块", "summary": "摘要"},
+            "index_columns": {"work_item_id": "项目ID", "module": "模块", "summary": "摘要"},
             "max_field_lengths": {"summary": 80},
             "summary_section": "结构化摘要",
-            "summary_fields": {"模块": "module", "需求描述": "summary", "优先级": "priority"},
+            "summary_fields": {"项目 ID": "work_item_id", "模块": "module", "需求描述": "summary", "优先级": "priority"},
             "list_fields": [],
         }
     },
