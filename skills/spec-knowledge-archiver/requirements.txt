@@ -1,0 +1,14 @@
+# spec-knowledge-archiver 运行时依赖
+# 用途：知识库向量索引（embed_indexer.py）与语义检索（embed_search.py）
+# 安装：pip install -r skills/spec-knowledge-archiver/requirements.txt
+#
+# Python >= 3.9（开发/测试环境 3.12）
+
+# 向量数据库：PersistentClient + HNSW（cosine/l2 空间），Collection.get/query API
+chromadb>=1.5
+
+# 句向量模型加载器：paraphrase-multilingual-MiniLM-L12-v2（中英混排，384 维）
+# 首次使用自动下载模型（约 450MB）。依赖链会带入 torch（体积较大，属正常）。
+sentence-transformers>=5.0
+
+# 注：归档文件锁使用标准库（Windows msvcrt / Unix fcntl），无需第三方依赖。

@@ -152,21 +152,22 @@ def _collect_markdown_chunks(collection_name, source_patterns, chunk_size=1500, 
     ids, documents, metadatas = [], [], []
 
     for md_path in md_files:
-        rel_path = os.path.relpath(md_path, KNOWLEDGE_ROOT)
-        parts = rel_path.split(os.sep)
+        # 统一为正斜杠，保证 doc_id / metadata 跨平台一致（Windows relpath 默认反斜杠）
+        rel_path = os.path.relpath(md_path, KNOWLEDGE_ROOT).replace(os.sep, "/")
+        parts = rel_path.split("/")
 
         # 推断平台和子路径
         platform = ""
         module = ""
         if len(parts) > 1 and parts[0] == "platform":
             platform = parts[1]
-            sub_path = os.sep.join(parts[2:]) if len(parts) > 2 else os.path.basename(rel_path)
+            sub_path = "/".join(parts[2:]) if len(parts) > 2 else parts[-1]
             # code-summary/{模块}/代码总结.md → 提取模块名
             if len(parts) >= 4 and parts[2] == "code-summary":
                 module = parts[3]
         elif parts[0] == "protocols":
             platform = "protocols"
-            sub_path = os.sep.join(parts[1:]) if len(parts) > 1 else os.path.basename(rel_path)
+            sub_path = "/".join(parts[1:]) if len(parts) > 1 else parts[-1]
             # protocols/{协议}/xxx.md → 提取协议名作为模块
             if len(parts) >= 2:
                 module = parts[1]

@@ -3,10 +3,12 @@
 知识库脚本共享模块 - 常量、配置、工具函数。
 """
 
+import contextlib
 import copy
 import json
 import os
 import re
+import sys
 import tempfile
 import threading
 
@@ -19,6 +21,9 @@ KNOWLEDGE_ROOT = os.path.join(
 VECTOR_DB_PATH = os.path.join(KNOWLEDGE_ROOT, "vector_db")
 CONFIG_FILE = os.path.join(KNOWLEDGE_ROOT, "knowledge_config.json")
 META_FILE = ".archive_meta.json"
+
+# 归档元数据 .archive_meta.json 的 schema 版本（演进时递增，load_meta 检查兼容性）
+META_SCHEMA_VERSION = 1
 
 # 「结构化摘要」节标题匹配：允许前导序号（"0."/"0 "）和尾部内容（"（专项）"）。
 # merge 选主文档与 ensure 注入字段共用此正则，避免两处写法漂移。
@@ -254,12 +259,18 @@ def get_source_dir(project_path, doc_type):
 # ── 元数据操作 ────────────────────────────────────────────
 
 def load_meta(dest_dir):
-    """加载归档元数据，文件不存在时返回空结构。"""
-    return load_json(os.path.join(dest_dir, META_FILE), {"entries": {}})
+    """加载归档元数据，文件不存在时返回空结构。检查 schema_version 兼容性。"""
+    meta = load_json(os.path.join(dest_dir, META_FILE), {"entries": {}})
+    ver = meta.get("schema_version", 1)
+    if ver > META_SCHEMA_VERSION:
+        print(f"[meta] 警告: {dest_dir} 的 schema_version={ver} 高于当前支持 "
+              f"{META_SCHEMA_VERSION}，可能需要升级工具", file=sys.stderr)
+    return meta
 
 
 def save_meta(dest_dir, meta):
-    """保存归档元数据。"""
+    """保存归档元数据（标记当前 schema_version）。"""
+    meta["schema_version"] = META_SCHEMA_VERSION
     save_json(os.path.join(dest_dir, META_FILE), meta)
 
 
@@ -444,6 +455,24 @@ def glob_files(patterns, root_dir):
 
 
 # ── 通用文件操作 ──────────────────────────────────────────
+
+@contextlib.contextmanager
+def exclusive_lock(lock_path):
+    """跨平台独占文件锁（Windows msvcrt / Unix fcntl），无第三方依赖。
+    用于防止并发归档导致 .archive_meta.json last-write-wins 丢条目。"""
+    os.makedirs(os.path.dirname(lock_path) or ".", exist_ok=True)
+    f = open(lock_path, "w")
+    try:
+        if sys.platform == "win32":
+            import msvcrt
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # 阻塞至获取
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        yield
+    finally:
+        f.close()  # 关闭即释放
+
 
 def atomic_write_text(filepath, content):
     """原子写入文本文件：先写临时文件再 rename，防止中断导致损坏。"""

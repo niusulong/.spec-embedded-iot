@@ -34,7 +34,7 @@ from common import (
     infer_platform, get_dest_dir, get_source_dir,
     load_meta, save_meta,
     safe_filename, extract_title, extract_work_item_id,
-    atomic_write_text, SUMMARY_HEADING_RE,
+    atomic_write_text, SUMMARY_HEADING_RE, exclusive_lock,
 )
 
 # 向量索引更新（可选依赖）
@@ -332,69 +332,71 @@ def cmd_archive(args):
         print(f"未找到任何 {doc_type} 条目")
         return
 
-    meta = load_meta(dest_dir)
-    dt_config = get_doc_type_config(doc_type)
+    # 归档临界区：加文件锁，防止并发归档导致 meta last-write-wins 丢条目
+    with exclusive_lock(os.path.join(dest_dir, ".archive.lock")):
+        meta = load_meta(dest_dir)
+        dt_config = get_doc_type_config(doc_type)
 
-    # 筛选要归档的条目
-    if args.name:
-        target_entries = [e for e in entries if args.name in e["name"]
-                          or args.name in extract_title(e["name"])]
-        if not target_entries:
-            print(f"未找到匹配 '{args.name}' 的条目")
-            print(f"可用条目:")
+        # 筛选要归档的条目
+        if args.name:
+            target_entries = [e for e in entries if args.name in e["name"]
+                              or args.name in extract_title(e["name"])]
+            if not target_entries:
+                print(f"未找到匹配 '{args.name}' 的条目")
+                print(f"可用条目:")
+                for e in entries:
+                    print(f"  - {e['name']}")
+                sys.exit(1)
+        elif args.incremental:
+            target_entries = []
             for e in entries:
-                print(f"  - {e['name']}")
-            sys.exit(1)
-    elif args.incremental:
-        target_entries = []
-        for e in entries:
-            existing = meta["entries"].get(e["name"])
-            if not existing:
-                target_entries.append(e)
-            else:
-                current_hash = compute_content_hash(e)
-                if existing.get("hash") != current_hash:
+                existing = meta["entries"].get(e["name"])
+                if not existing:
                     target_entries.append(e)
-        if not target_entries:
-            print("所有条目已是最新，无需归档")
-            return
-    else:
-        target_entries = entries
-
-    # 执行归档
-    print(f"平台: {platform}")
-    print(f"类型: {doc_type}")
-    print(f"目标: {dest_dir}")
-    print(f"待归档: {len(target_entries)} 条")
-    print()
-
-    archived_new = 0
-    archived_updated = 0
-    for entry in target_entries:
-        # 增量模式下复用已算过的 hash
-        content_hash = None
-        if args.incremental:
-            content_hash = compute_content_hash(entry)
-        result = archive_entry(entry, dest_dir, meta, platform, content_hash, dt_config)
-        if result:
-            title, filename, is_new = result
-            if is_new:
-                archived_new += 1
-                status = "新增"
-            else:
-                archived_updated += 1
-                status = "更新"
-            print(f"  [{status}] {title}")
+                else:
+                    current_hash = compute_content_hash(e)
+                    if existing.get("hash") != current_hash:
+                        target_entries.append(e)
+            if not target_entries:
+                print("所有条目已是最新，无需归档")
+                return
         else:
-            print(f"  [跳过] {entry['name']} (无有效内容)")
+            target_entries = entries
 
-    # 清理已删除的条目
-    removed = cleanup_deleted_entries(meta, entries, dest_dir)
-    for title in removed:
-        print(f"  [清理] {title} (源文件已删除)")
+        # 执行归档
+        print(f"平台: {platform}")
+        print(f"类型: {doc_type}")
+        print(f"目标: {dest_dir}")
+        print(f"待归档: {len(target_entries)} 条")
+        print()
 
-    # 保存元数据（原子写入）
-    save_meta(dest_dir, meta)
+        archived_new = 0
+        archived_updated = 0
+        for entry in target_entries:
+            # 增量模式下复用已算过的 hash
+            content_hash = None
+            if args.incremental:
+                content_hash = compute_content_hash(entry)
+            result = archive_entry(entry, dest_dir, meta, platform, content_hash, dt_config)
+            if result:
+                title, filename, is_new = result
+                if is_new:
+                    archived_new += 1
+                    status = "新增"
+                else:
+                    archived_updated += 1
+                    status = "更新"
+                print(f"  [{status}] {title}")
+            else:
+                print(f"  [跳过] {entry['name']} (无有效内容)")
+
+        # 清理已删除的条目
+        removed = cleanup_deleted_entries(meta, entries, dest_dir)
+        for title in removed:
+            print(f"  [清理] {title} (源文件已删除)")
+
+        # 保存元数据（原子写入）
+        save_meta(dest_dir, meta)
 
     # 生成索引（传入 meta 避免重复加载）
     generate_index(dest_dir, platform, doc_type, meta)
