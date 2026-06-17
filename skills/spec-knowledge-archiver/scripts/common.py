@@ -3,10 +3,12 @@
 知识库脚本共享模块 - 常量、配置、工具函数。
 """
 
+import copy
 import json
 import os
 import re
 import tempfile
+import threading
 
 # ── 路径常量 ──────────────────────────────────────────────
 
@@ -17,6 +19,10 @@ KNOWLEDGE_ROOT = os.path.join(
 VECTOR_DB_PATH = os.path.join(KNOWLEDGE_ROOT, "vector_db")
 CONFIG_FILE = os.path.join(KNOWLEDGE_ROOT, "knowledge_config.json")
 META_FILE = ".archive_meta.json"
+
+# 「结构化摘要」节标题匹配：允许前导序号（"0."/"0 "）和尾部内容（"（专项）"）。
+# merge 选主文档与 ensure 注入字段共用此正则，避免两处写法漂移。
+SUMMARY_HEADING_RE = re.compile(r"^##\s*\d*[\.\s]*结构化摘要", re.MULTILINE)
 
 # ── 默认配置 ──────────────────────────────────────────────
 
@@ -97,17 +103,64 @@ _DEFAULT_CONFIG = {
 _config_cache = None
 
 
+def _deep_merge(base, override):
+    """递归合并：override 覆盖 base 同名键，dict 递归合并，其余直接覆盖。"""
+    result = copy.deepcopy(base)
+    for k, v in override.items():
+        if k in result and isinstance(result[k], dict) and isinstance(v, dict):
+            result[k] = _deep_merge(result[k], v)
+        else:
+            result[k] = copy.deepcopy(v)
+    return result
+
+
+def _validate_config(cfg):
+    """校验配置结构，发现问题打印 [config] 警告到 stderr（不阻断，避免误伤）。"""
+    import sys
+    doc_types = cfg.get("doc_types", {})
+    collections = cfg.get("collections", {})
+    if not doc_types:
+        print("[config] 警告: doc_types 为空，归档将无法工作", file=sys.stderr)
+    if not collections:
+        print("[config] 警告: collections 为空，向量索引/检索将无法工作", file=sys.stderr)
+    # summary 策略的 collection 必须能反查到一个 doc_type（dest_dir == collection 名），
+    # 否则 _collect_summary_entries 拿不到 dt_cfg，摘要向量静默降级。
+    dest_to_dtype = {dt.get("dest_dir"): name for name, dt in doc_types.items()}
+    for col_name, col in collections.items():
+        if col.get("strategy") == "summary" and col_name not in dest_to_dtype:
+            print(f"[config] 警告: collection '{col_name}' 为 summary 策略但无对应 "
+                  f"doc_type（dest_dir=='{col_name}'），摘要向量将降级", file=sys.stderr)
+    # 版本检查（目前仅提示，迁移逻辑见 Tier 3）
+    ver = cfg.get("version")
+    if ver is not None and ver != _DEFAULT_CONFIG.get("version"):
+        print(f"[config] 提示: 配置 version={ver}，默认={_DEFAULT_CONFIG.get('version')}，"
+              f"注意兼容性", file=sys.stderr)
+
+
 def load_config():
-    """加载配置，文件不存在时使用默认值。"""
+    """加载配置：用户配置深度合并到默认值之上（缺键回退默认，防静默瘫痪）。
+    返回深拷贝，避免外部修改污染缓存。"""
     global _config_cache
-    if _config_cache is not None:
-        return _config_cache
-    if os.path.isfile(CONFIG_FILE):
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            _config_cache = json.load(f)
-    else:
-        _config_cache = _DEFAULT_CONFIG
-    return _config_cache
+    if _config_cache is None:
+        if os.path.isfile(CONFIG_FILE):
+            with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+                try:
+                    user_cfg = json.load(f)
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"[config] 警告: 配置文件解析失败 ({e})，回退默认配置", file=sys.stderr)
+                    user_cfg = {}
+            _config_cache = _deep_merge(_DEFAULT_CONFIG, user_cfg)
+        else:
+            _config_cache = copy.deepcopy(_DEFAULT_CONFIG)
+        _validate_config(_config_cache)
+    return copy.deepcopy(_config_cache)
+
+
+def reload_config():
+    """清除配置缓存并重新加载（测试/外部更新配置后调用）。"""
+    global _config_cache
+    _config_cache = None
+    return load_config()
 
 
 def get_doc_type_config(doc_type):
@@ -137,17 +190,20 @@ def list_collections():
 # ── ChromaDB 延迟加载 ────────────────────────────────────
 
 _ef_instance = None
+_ef_lock = threading.Lock()
 _chromadb_module = None
 
 
 def get_embedding_function():
-    """延迟加载 embedding 函数（首次调用约 2-3s）。"""
+    """延迟加载 embedding 函数（首次调用约 2-3s）。双检锁保证并发安全。"""
     global _ef_instance
     if _ef_instance is None:
-        from chromadb.utils import embedding_functions
-        _ef_instance = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="paraphrase-multilingual-MiniLM-L12-v2"
-        )
+        with _ef_lock:
+            if _ef_instance is None:
+                from chromadb.utils import embedding_functions
+                _ef_instance = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name="paraphrase-multilingual-MiniLM-L12-v2"
+                )
     return _ef_instance
 
 

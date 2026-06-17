@@ -34,7 +34,7 @@ from common import (
     infer_platform, get_dest_dir, get_source_dir,
     load_meta, save_meta,
     safe_filename, extract_title, extract_work_item_id,
-    atomic_write_text,
+    atomic_write_text, SUMMARY_HEADING_RE,
 )
 
 # 向量索引更新（可选依赖）
@@ -83,7 +83,7 @@ def merge_md_files(entry):
     if not items:
         return None
 
-    summary_re = re.compile(r"^##\s*\d*[\.\s]*结构化摘要", re.MULTILINE)
+    summary_re = SUMMARY_HEADING_RE
     primary_idx = next(
         (i for i, (_, c) in enumerate(items) if summary_re.search(c)), None
     )
@@ -142,7 +142,7 @@ def ensure_summary_field_row(content, label, value):
     lines = content.split("\n")
     try:
         head = next(i for i, ln in enumerate(lines)
-                    if re.match(r"^##\s*\d*[\.\s]*结构化摘要\s*$", ln))
+                    if SUMMARY_HEADING_RE.search(ln))
     except StopIteration:
         return content
     # 节边界：下一个 ## 标题

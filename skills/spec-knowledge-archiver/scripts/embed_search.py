@@ -51,8 +51,8 @@ def _query_collection(query, collection_name, platform=None, top=5):
 
     where_filter = {"platform": platform} if platform else None
 
-    # 过取以支持按源文件去重
-    fetch_n = min(collection.count(), max(top * 5, top + 10))
+    # 过取以支持按源文件去重（大文档可能产生较多块）
+    fetch_n = min(collection.count(), max(top * 10, top + 50))
     results = collection.query(
         query_texts=[query],
         n_results=fetch_n,
@@ -87,9 +87,10 @@ def _query_collection(query, collection_name, platform=None, top=5):
         }
 
         # 按源文件去重，保留每文件相似度最高的一条；
-        # file 缺失时回退到 doc_id，避免误合并不同条目
+        # key 含 collection 维度，避免不同 collection 同 platform+file 误合并；
+        # file 缺失时回退到 doc_id
         file_key = item["file"] or doc_id
-        key = (item["platform"], file_key)
+        key = (item["collection"], item["platform"], file_key)
         prev = best_by_file.get(key)
         if prev is None or similarity > prev["similarity"]:
             best_by_file[key] = item
