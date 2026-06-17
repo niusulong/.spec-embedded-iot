@@ -7,3 +7,6 @@ skills/*
 
 # 临时/本地文件
 /plan.md
+
+# 本地工具配置（Claude Code 会话级设置，不入库）
+.claude/
