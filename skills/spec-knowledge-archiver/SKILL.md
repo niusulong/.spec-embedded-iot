@@ -14,6 +14,8 @@ description: >
 
 将项目 `.spec/` 下的 bug 分析文档和需求解决方案归档到持久化知识库，并提供多类型知识的统一向量检索。脚本目录: `scripts/`
 
+> **归档语义**：归档是单向、永久的。文档一旦进入中央 KB，项目 `.spec/` 下的源文件即完成使命、可自由删除/清理；归档器对 KB 只做"新增/更新"，**绝不因源文件消失而删除已归档条目**。源是临时输入，KB 是持久产物。
+
 ## 归档命令
 
 **1. 批量归档所有条目**
@@ -164,7 +166,6 @@ python scripts/embed_search.py "死机" --top 10 --json
 `verify` 命令检查：
 - meta 中的条目是否有对应 .md 文件
 - 目录中的 .md 文件是否有 meta 记录
-- 源目录已删除的条目是否已清理
 - 向量索引与 meta 是否同步
 
 ## 工作流
@@ -174,4 +175,4 @@ python scripts/embed_search.py "死机" --top 10 --json
 3. 归档完成后可运行 `verify` 校验一致性
 4. 运行 `embed_indexer.py update` 或 `build` 更新所有 collection 的向量索引
 5. 使用 `embed_search.py` 进行跨 collection 语义检索
-6. 向用户报告归档/搜索结果（新增/更新/清理数量）
+6. 向用户报告归档/搜索结果（新增/更新数量）

@@ -237,22 +237,10 @@ def archive_entry(entry, dest_dir, meta, platform, content_hash=None, doc_type_c
     return (title, output_file, is_new)
 
 
-def cleanup_deleted_entries(meta, source_entries, dest_dir):
-    """清理源目录中已删除的条目：从 meta 移除，删除对应文件。
-    返回被清理的 entry_name 列表。"""
-    source_names = {e["name"] for e in source_entries}
-    removed = []
-    for entry_name in list(meta["entries"].keys()):
-        if entry_name not in source_names:
-            info = meta["entries"].pop(entry_name)
-            filepath = os.path.join(dest_dir, info.get("file", ""))
-            if os.path.isfile(filepath):
-                try:
-                    os.remove(filepath)
-                except OSError:
-                    pass
-            removed.append(info.get("title", entry_name))
-    return removed
+# 设计原则：归档是单向、永久的。
+# 文档一旦进入中央 KB，源文件（项目 .spec/ 下）即完成使命、可自由删除/清理；
+# 归档器对 KB 只做"新增/更新"，绝不因源文件消失而删除已归档条目。
+# （历史版本曾按"源已删除"做增量清理，会误删来自其它项目的共享条目，已移除该逻辑。）
 
 
 # ── 索引生成 ─────────────────────────────────────────────
@@ -390,11 +378,6 @@ def cmd_archive(args):
             else:
                 print(f"  [跳过] {entry['name']} (无有效内容)")
 
-        # 清理已删除的条目
-        removed = cleanup_deleted_entries(meta, entries, dest_dir)
-        for title in removed:
-            print(f"  [清理] {title} (源文件已删除)")
-
         # 保存元数据（原子写入）
         save_meta(dest_dir, meta)
 
@@ -415,7 +398,7 @@ def cmd_archive(args):
             print("  提示: chromadb 未安装，跳过向量索引更新")
 
     print()
-    print(f"完成: 新增 {archived_new}, 更新 {archived_updated}, 清理 {len(removed)}")
+    print(f"完成: 新增 {archived_new}, 更新 {archived_updated}")
 
 
 def cmd_verify(args):
@@ -424,7 +407,6 @@ def cmd_verify(args):
     doc_type = args.type
     cfg = get_doc_type_config(doc_type)
     dest_dir = get_dest_dir(platform, doc_type)
-    source_dir = get_source_dir(args.project, doc_type) if args.project else None
 
     print(f"平台: {platform}")
     print(f"类型: {doc_type}")
@@ -447,14 +429,7 @@ def cmd_verify(args):
             if f.endswith(".md") and f != "index.md" and f not in meta_files:
                 issues.append(f"  [孤儿文件] {f} (无 meta 记录)")
 
-    # 检查 3: 源目录已删除的条目
-    if source_dir and os.path.isdir(source_dir):
-        source_names = {e["name"] for e in list_entries(source_dir)}
-        for name in entries:
-            if name not in source_names:
-                issues.append(f"  [源已删除] {entries[name].get('title', name)}")
-
-    # 检查 4: 向量索引一致性（按 doc_type 的 dest_dir 定位 collection）
+    # 检查 3: 向量索引一致性（按 doc_type 的 dest_dir 定位 collection）
     # 向量 id 以 entry_name 为基础（{plat}/{entry_name}[ /chunk_N]），与文件名解耦，
     # 因此文件名迁移（加平台前缀）不会造成 id 漂移。
     collection_name = cfg.get("dest_dir")
