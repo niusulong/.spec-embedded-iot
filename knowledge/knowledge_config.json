@@ -50,11 +50,17 @@
   "collections": {
     "bug-solutions": {
       "strategy": "summary",
-      "sources": ["platform/*/bug-solutions/.archive_meta.json"]
+      "sources": ["platform/*/bug-solutions/.archive_meta.json"],
+      "index_body": true,
+      "chunk_size": 1200,
+      "chunk_overlap": 200
     },
     "requirement-solutions": {
       "strategy": "summary",
-      "sources": ["platform/*/requirement-solutions/.archive_meta.json"]
+      "sources": ["platform/*/requirement-solutions/.archive_meta.json"],
+      "index_body": true,
+      "chunk_size": 1200,
+      "chunk_overlap": 200
     },
     "code-summary": {
       "strategy": "markdown_chunks",

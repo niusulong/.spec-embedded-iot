@@ -49,7 +49,18 @@ def scan_platforms():
 # ── summary 策略：从 .archive_meta.json 读取 ───────────────
 
 def _collect_summary_entries(platform, collection_name, source_patterns):
-    """从 meta 文件读取 summary 条目，返回 (ids, docs, metas)。"""
+    """从 meta 文件读取 summary 条目，返回 (ids, docs, metas)。
+
+    每个条目产出：
+      - 1 条「摘要向量」(doc_kind="summary")：来自结构化摘要字段，提精度 + 保结构化过滤。
+        ID = {plat}/{file}，与旧索引兼容。
+    若 collection 配置了 index_body=true，额外产出：
+      - N 条「正文块向量」(doc_kind="body")：读取同目录 .md 正文分块，保召回，
+        让正文里的日志片段/寄存器值/AT 命令等细节也可语义检索；摘要为空时仍可检索。
+        ID = {plat}/{file}/chunk_{n}。
+
+    既无摘要又未索引到正文（index_body=false 或 .md 缺失）→ 警告并跳过。
+    """
     cfg = load_config()
     doc_types = cfg.get("doc_types", {})
 
@@ -60,12 +71,18 @@ def _collect_summary_entries(platform, collection_name, source_patterns):
             dt_cfg = dt
             break
 
+    col_cfg = get_collection_config(collection_name)
+    index_body = col_cfg.get("index_body", False)
+    chunk_size = col_cfg.get("chunk_size", 1200)
+    chunk_overlap = col_cfg.get("chunk_overlap", 200)
+
     ids, documents, metadatas = [], [], []
 
     # source_patterns 形如 ["platform/*/bug-solutions/.archive_meta.json"]
     meta_files = glob_files(source_patterns, KNOWLEDGE_ROOT)
     for meta_path in meta_files:
         meta = load_json(meta_path, {"entries": {}})
+        dest_dir = os.path.dirname(meta_path)
         # 从路径推断平台
         rel = os.path.relpath(meta_path, KNOWLEDGE_ROOT)
         parts = rel.split(os.sep)
@@ -73,27 +90,56 @@ def _collect_summary_entries(platform, collection_name, source_patterns):
 
         for entry_name, info in meta.get("entries", {}).items():
             summary = info.get("summary", {})
-            if not summary:
-                continue
+            filename = info.get("file", "")
+            # 向量 id 以 entry_name 为基础（稳定），与文件名解耦：
+            # 文件名迁移（safe_filename 加平台前缀）不会造成 id 漂移 / 僵尸向量
+            doc_id = make_doc_id(plat, entry_name)
 
-            doc_id = make_doc_id(plat, info["file"])
-            summary_text = build_summary_text(summary, dt_cfg)
-            if not summary_text.strip():
-                continue
-
-            metadata = {
+            # 基础 metadata（摘要中的字符串字段也写入，便于结构化过滤；
+            # 列表型字段如 keywords/symptoms 不写 metadata，只进摘要文本）
+            base_meta = {
                 "platform": plat,
                 "title": info.get("title", ""),
-                "file": info.get("file", ""),
+                "file": filename,
                 "collection": collection_name,
             }
             for key, value in summary.items():
                 if isinstance(value, str) and value:
-                    metadata[key] = value[:200]
+                    base_meta[key] = value[:200]
 
-            ids.append(doc_id)
-            documents.append(summary_text)
-            metadatas.append(metadata)
+            # 1) 摘要向量（提精度 + 保结构化过滤）
+            summary_text = build_summary_text(summary, dt_cfg)
+            if summary_text.strip():
+                ids.append(doc_id)
+                documents.append(summary_text)
+                metadatas.append({**base_meta, "doc_kind": "summary"})
+
+            # 2) 正文分块向量（保召回）
+            body_chunks = 0
+            if index_body and filename:
+                md_path = os.path.join(dest_dir, filename)
+                content = ""
+                if os.path.isfile(md_path):
+                    try:
+                        with open(md_path, "r", encoding="utf-8", errors="replace") as f:
+                            content = f.read()
+                    except Exception:
+                        content = ""
+                if content.strip():
+                    chunks = chunk_markdown(content, chunk_size, chunk_overlap)
+                    body_chunks = len(chunks)
+                    for idx, (chunk_text, section_title) in enumerate(chunks, 1):
+                        ids.append(f"{doc_id}/chunk_{idx}")
+                        documents.append(chunk_text)
+                        metadatas.append({
+                            **base_meta,
+                            "doc_kind": "body",
+                            "section_title": section_title,
+                        })
+
+            # 既无摘要又无正文兜底 → 警告并跳过
+            if not summary_text.strip() and body_chunks == 0:
+                print(f"  警告: {plat}/{filename} 无结构化摘要且未索引到正文，跳过该条目")
 
     return ids, documents, metadatas
 
@@ -194,7 +240,7 @@ def index_all(collection_name=None):
         collection = client.get_or_create_collection(
             name=col_name,
             embedding_function=ef,
-            metadata={"description": f"{col_name} 向量索引"}
+            metadata={"description": f"{col_name} 向量索引", "hnsw:space": "cosine"}
         )
 
         ids, documents, metadatas = _collect_collection(col_name)
@@ -228,7 +274,7 @@ def update_index(collection_name=None):
         collection = client.get_or_create_collection(
             name=col_name,
             embedding_function=ef,
-            metadata={"description": f"{col_name} 向量索引"}
+            metadata={"description": f"{col_name} 向量索引", "hnsw:space": "cosine"}
         )
 
         ids, documents, metadatas = _collect_collection(col_name)

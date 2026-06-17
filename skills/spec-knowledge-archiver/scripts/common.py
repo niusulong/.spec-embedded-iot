@@ -55,11 +55,17 @@ _DEFAULT_CONFIG = {
     "collections": {
         "bug-solutions": {
             "strategy": "summary",
-            "sources": ["platform/*/bug-solutions/.archive_meta.json"]
+            "sources": ["platform/*/bug-solutions/.archive_meta.json"],
+            "index_body": True,
+            "chunk_size": 1200,
+            "chunk_overlap": 200,
         },
         "requirement-solutions": {
             "strategy": "summary",
-            "sources": ["platform/*/requirement-solutions/.archive_meta.json"]
+            "sources": ["platform/*/requirement-solutions/.archive_meta.json"],
+            "index_body": True,
+            "chunk_size": 1200,
+            "chunk_overlap": 200,
         },
         "code-summary": {
             "strategy": "markdown_chunks",
@@ -105,24 +111,20 @@ def load_config():
 
 
 def get_doc_type_config(doc_type):
-    """获取指定文档类型的配置，不存在则报错退出。"""
-    import sys
+    """获取指定文档类型的配置，不存在则抛 ValueError（由 CLI 边界处理，便于作为库复用）。"""
     cfg = load_config()
     dtypes = cfg.get("doc_types", {})
     if doc_type not in dtypes:
-        print(f"错误: 不支持的文档类型 '{doc_type}'，支持: {list(dtypes.keys())}")
-        sys.exit(1)
+        raise ValueError(f"不支持的文档类型 '{doc_type}'，支持: {list(dtypes.keys())}")
     return dtypes[doc_type]
 
 
 def get_collection_config(collection_name):
-    """获取指定 collection 的配置，不存在则报错退出。"""
-    import sys
+    """获取指定 collection 的配置，不存在则抛 ValueError（由 CLI 边界处理，便于作为库复用）。"""
     cfg = load_config()
     cols = cfg.get("collections", {})
     if collection_name not in cols:
-        print(f"错误: 不支持的 collection '{collection_name}'，支持: {list(cols.keys())}")
-        sys.exit(1)
+        raise ValueError(f"不支持的 collection '{collection_name}'，支持: {list(cols.keys())}")
     return cols[collection_name]
 
 
@@ -170,7 +172,7 @@ def get_collection(collection_name):
     return client.get_or_create_collection(
         name=collection_name,
         embedding_function=get_embedding_function(),
-        metadata={"description": f"{collection_name} 向量索引"}
+        metadata={"description": f"{collection_name} 向量索引", "hnsw:space": "cosine"}
     )
 
 
@@ -288,6 +290,8 @@ def chunk_markdown(content, chunk_size=1500, chunk_overlap=200):
     """将 Markdown 内容分块。
     返回 [(chunk_text, section_title)] 列表。
     """
+    if not content or not content.strip():
+        return []
     sections = _split_by_headings(content)
     chunks = []
     current_chunk = []
@@ -313,8 +317,11 @@ def chunk_markdown(content, chunk_size=1500, chunk_overlap=200):
             current_size = 0
 
         if section_size > chunk_size:
-            # 按段落切大节
-            paragraphs = section_text.split("\n\n")
+            # 按段落切大节（基于 body，避免 "## 标题" 被切成独立垃圾块）
+            paragraphs = body.split("\n\n")
+            # 标题附加到首段，提供上下文但不单独成块
+            if title and paragraphs:
+                paragraphs[0] = f"## {title}\n\n{paragraphs[0]}"
             buffer = []
             buffer_size = 0
             for para in paragraphs:

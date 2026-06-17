@@ -209,12 +209,12 @@ def archive_entry(entry, dest_dir, meta, platform, content_hash=None, doc_type_c
             except OSError:
                 pass
 
-    # 提取结构化摘要
+    # 提取结构化摘要（失败不阻断归档，但需告警——否则该条目会静默掉出向量索引）
     summary = None
     try:
         summary = extract_summary_from_md(output_path, doc_type_config)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"  [warn] 摘要提取失败 ({title}): {e}", file=sys.stderr)
 
     # 工作项 ID 兜底：摘要缺失则用文件夹单号，再缺失填 NA
     wid_value = (summary.get("work_item_id") if summary else None) or work_item_id or "NA"
@@ -452,20 +452,30 @@ def cmd_verify(args):
             if name not in source_names:
                 issues.append(f"  [源已删除] {entries[name].get('title', name)}")
 
-    # 检查 4: 向量索引一致性（仅 bug 类型）
-    if doc_type == "bug":
-        try:
-            from embed_indexer import COLLECTION_NAME
-            from common import get_vector_client, get_embedding_function
-            client = get_vector_client()
-            collection = client.get_collection(COLLECTION_NAME, embedding_function=get_embedding_function())
-            indexed_ids = set(collection.get()["ids"])
-            for name, info in entries.items():
-                doc_id = f"{platform}/{info.get('file', '')}"
-                if doc_id not in indexed_ids and info.get("summary"):
-                    issues.append(f"  [未索引] {info.get('title', name)}")
-        except Exception:
-            pass  # chromadb 不可用时跳过
+    # 检查 4: 向量索引一致性（按 doc_type 的 dest_dir 定位 collection）
+    # 向量 id 以 entry_name 为基础（{plat}/{entry_name}[ /chunk_N]），与文件名解耦，
+    # 因此文件名迁移（加平台前缀）不会造成 id 漂移。
+    collection_name = cfg.get("dest_dir")
+    try:
+        from common import get_vector_client, get_embedding_function
+        client = get_vector_client()
+        collection = client.get_collection(collection_name, embedding_function=get_embedding_function())
+        indexed_ids = set(collection.get()["ids"])
+        # 正向：meta 有摘要但向量缺失
+        for name, info in entries.items():
+            doc_id = f"{platform}/{name}"
+            if doc_id not in indexed_ids and info.get("summary"):
+                issues.append(f"  [未索引] {info.get('title', name)}")
+        # 反向：当前平台下 meta 已不存在的僵尸向量（迁移/删除后残留）
+        valid_names = set(entries.keys())
+        for vid in indexed_ids:
+            if not vid.startswith(f"{platform}/"):
+                continue
+            base = vid[len(platform) + 1:].split("/chunk_", 1)[0]
+            if base not in valid_names:
+                issues.append(f"  [僵尸向量] {vid} (meta 无对应条目，建议重建索引)")
+    except Exception as e:
+        print(f"  [warn] 向量索引校验跳过: {e}")
 
     if issues:
         print(f"发现 {len(issues)} 个问题:")
@@ -567,4 +577,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ValueError as e:
+        print(f"错误: {e}", file=sys.stderr)
+        sys.exit(2)

@@ -33,7 +33,11 @@ from common import (
 
 
 def _query_collection(query, collection_name, platform=None, top=5):
-    """查询单个 collection，返回标准化结果列表。"""
+    """查询单个 collection，返回标准化结果列表。
+
+    过取后按源文件 (platform, file) 去重：同一文档的摘要块 + 多个正文块
+    只保留相似度最高的一条，避免 top-N 被同一个文档的多个块占满。
+    """
     client = get_vector_client()
     ef = get_embedding_function()
 
@@ -47,9 +51,11 @@ def _query_collection(query, collection_name, platform=None, top=5):
 
     where_filter = {"platform": platform} if platform else None
 
+    # 过取以支持按源文件去重
+    fetch_n = min(collection.count(), max(top * 5, top + 10))
     results = collection.query(
         query_texts=[query],
-        n_results=min(top, collection.count()),
+        n_results=fetch_n,
         where=where_filter,
         include=["documents", "metadatas", "distances"]
     )
@@ -57,14 +63,14 @@ def _query_collection(query, collection_name, platform=None, top=5):
     if not results["ids"] or not results["ids"][0]:
         return []
 
-    output_items = []
+    best_by_file = {}
     for i, doc_id in enumerate(results["ids"][0]):
         distance = results["distances"][0][i]
         similarity = round(1 - distance, 4)
         metadata = results["metadatas"][0][i]
         document = results["documents"][0][i]
 
-        output_items.append({
+        item = {
             "id": doc_id,
             "collection": metadata.get("collection", collection_name),
             "similarity": similarity,
@@ -75,13 +81,24 @@ def _query_collection(query, collection_name, platform=None, top=5):
             "module": metadata.get("module", ""),
             "bug_type": metadata.get("bug_type", ""),
             "root_cause": metadata.get("root_cause", ""),
+            "doc_kind": metadata.get("doc_kind", ""),
+            "section_title": metadata.get("section_title", ""),
             "summary_text": document,
-        })
+        }
 
-    return output_items
+        # 按源文件去重，保留每文件相似度最高的一条；
+        # file 缺失时回退到 doc_id，避免误合并不同条目
+        file_key = item["file"] or doc_id
+        key = (item["platform"], file_key)
+        prev = best_by_file.get(key)
+        if prev is None or similarity > prev["similarity"]:
+            best_by_file[key] = item
+
+    items = sorted(best_by_file.values(), key=lambda x: x["similarity"], reverse=True)
+    return items[:top]
 
 
-def search(query, collections=None, platform=None, top=5, output_json=False):
+def search(query, collections=None, platform=None, top=5, output_json=False, min_similarity=0.0):
     """搜索知识库向量索引。默认跨所有 collection。"""
     if collections is None or len(collections) == 0:
         collections = list_collections()
@@ -97,6 +114,9 @@ def search(query, collections=None, platform=None, top=5, output_json=False):
 
     # 全局按相似度排序
     all_items.sort(key=lambda x: x["similarity"], reverse=True)
+    # 相似度阈值过滤（cosine；默认 0.0 不过滤）
+    if min_similarity > 0:
+        all_items = [it for it in all_items if it["similarity"] >= min_similarity]
     all_items = all_items[:top]
 
     if output_json:
@@ -104,7 +124,10 @@ def search(query, collections=None, platform=None, top=5, output_json=False):
         return
 
     if not all_items:
-        print("未找到匹配案例")
+        if min_similarity > 0:
+            print(f"未找到相似度 >= {min_similarity} 的结果")
+        else:
+            print("未找到匹配案例")
         return
 
     print(f"搜索: \"{query}\"")
@@ -113,11 +136,20 @@ def search(query, collections=None, platform=None, top=5, output_json=False):
     print(f"找到 {len(all_items)} 个相关结果:\n")
 
     for i, item in enumerate(all_items, 1):
-        print(f"  [{i}] [{item['collection']}] {item['title'] or item['file']}")
+        kind = item.get('doc_kind', '')
+        if kind == 'summary':
+            kind_tag = "[摘要]"
+        elif kind == 'body':
+            kind_tag = "[正文]"
+        else:
+            kind_tag = ""
+        print(f"  [{i}] [{item['collection']}] {kind_tag} {item['title'] or item['file']}".rstrip())
         if item.get('work_item_id'):
             print(f"      单号: {item['work_item_id']}")
         if item['platform']:
             print(f"      平台: {item['platform']} | 模块: {item['module']} | 相似度: {item['similarity']}")
+        if kind == 'body' and item.get('section_title'):
+            print(f"      命中段落: {item['section_title']}")
         if item['root_cause']:
             print(f"      根因: {item['root_cause'][:80]}")
         if item['file']:
@@ -145,13 +177,15 @@ def main():
                         help="同 --collection（兼容旧参数）")
     parser.add_argument("--platform", help="限定平台（如 EC626）")
     parser.add_argument("--top", type=int, default=5, help="返回结果数量（默认 5）")
+    parser.add_argument("--min-similarity", type=float, default=0.0, dest="min_similarity",
+                        help="最小 cosine 相似度阈值，低于则丢弃（默认 0.0 不过滤；RAG 下游建议 0.3）")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
 
     args = parser.parse_args()
 
     collections = [args.collection or args.type] if (args.collection or args.type) else None
     search(args.query, collections=collections, platform=args.platform,
-           top=args.top, output_json=args.json)
+           top=args.top, output_json=args.json, min_similarity=args.min_similarity)
 
 
 if __name__ == "__main__":

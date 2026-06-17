@@ -35,7 +35,9 @@ DEFAULT_LIST_FIELDS = {"symptoms", "keywords"}
 
 # 匹配 | **字段** | 值 | 或 | 字段 | 值 |
 TABLE_ROW_RE = re.compile(
-    r"^\|\s*\*{0,2}(.+?)\*{0,2}\s*\|\s*(.+?)\s*\|$", re.MULTILINE
+    # 字段名与值都用 [^|] 字符类，严格匹配 2 列行；
+    # 3+ 列表格行（如寄存器解码 |addr|val|desc|）不会被误解析为字段值
+    r"^\|\s*\*{0,2}([^|]+?)\*{0,2}\s*\|\s*([^|]*?)\s*\|$", re.MULTILINE
 )
 
 
@@ -168,10 +170,10 @@ def main():
             doc_type = sys.argv[idx + 1]
             try:
                 sys.path.insert(0, os.path.dirname(__file__))
-                from common import load_config, get_doc_type_config
+                from common import get_doc_type_config
                 doc_type_config = get_doc_type_config(doc_type)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"[warn] 加载 --type '{doc_type}' 配置失败，回退默认 bug 字段: {e}", file=sys.stderr)
 
     summary = extract_summary(filepath, doc_type_config)
     if summary:

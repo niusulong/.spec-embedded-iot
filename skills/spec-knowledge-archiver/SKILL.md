@@ -146,6 +146,15 @@ python scripts/embed_search.py "死机" --top 10 --json
 | `summary` | 小文档 + 结构化摘要，如 bug-solutions、requirement-solutions |
 | `markdown_chunks` | 长文档，如 code-summary、official-docs-md、protocols、project-overview |
 
+**`summary` 策略 + `index_body: true`（混合索引）**：bug-solutions / requirement-solutions 默认开启。每个条目同时产出两类向量：
+
+| 向量 | `doc_kind` | 来源 | 作用 |
+|------|-----------|------|------|
+| 摘要向量 | `summary` | 结构化摘要 8 字段 | 提精度（根因/症状查询更准）+ 保结构化过滤 |
+| 正文块向量 | `body` | `.md` 正文分块 | 保召回（日志/寄存器/AT 命令等正文细节可语义检索） |
+
+这样无论文档有没有写结构化摘要表都能被检索到，摘要只是提升精度而非检索前置门槛。搜索时按源文件去重，同一文档的多个块只保留最相关的一条；输出用 `[摘要]`/`[正文]` 标签区分，`[正文]` 命中会显示命中的段落标题。
+
 ## 向量索引
 
 归档 bug/requirement 后**自动**调用 `embed_indexer.py update` 更新向量索引（chromadb + paraphrase-multilingual-MiniLM-L12-v2）。使用 `--no-vector` 可跳过。首次使用需下载模型（约 450MB）。
