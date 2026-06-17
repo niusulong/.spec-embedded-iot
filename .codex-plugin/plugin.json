@@ -1,6 +1,6 @@
 {
   "name": "agents",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结、知识库语义检索",
   "author": {
     "name": "niusulong"
