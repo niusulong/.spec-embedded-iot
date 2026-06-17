@@ -26,8 +26,10 @@
           "端口切换",
           "at_channel",
           "异步回调"
-        ]
-      }
+        ],
+        "work_item_id": "NA"
+      },
+      "work_item_id": "NA"
     },
     "FILEFTPGET下载进度URC端口错乱": {
       "title": "FILEFTPGET下载进度URC端口错乱",
@@ -55,8 +57,10 @@
           "at_channel",
           "nwy_app_at_get_plat_at_channel",
           "全局变量"
-        ]
-      }
+        ],
+        "work_item_id": "NA"
+      },
+      "work_item_id": "NA"
     },
     "FILEFTPGET文件写入失败": {
       "title": "FILEFTPGET文件写入失败",
@@ -84,8 +88,10 @@
           "No more free space",
           "nwy_vfs_fwrite",
           "Flash空间"
-        ]
-      }
+        ],
+        "work_item_id": "NA"
+      },
+      "work_item_id": "NA"
     },
     "FotaTrig_DataAbort_代码段未加载": {
       "title": "FotaTrig_DataAbort_代码段未加载",
@@ -115,8 +121,61 @@
           "代码段未加载",
           "nwy_fota_get_reboot_count",
           "scatter"
+        ],
+        "work_item_id": "NA"
+      },
+      "work_item_id": "NA"
+    },
+    "NA_rti_switchout_null_deref": {
+      "title": "NA_rti_switchout_null_deref",
+      "work_item_id": "NA",
+      "file": "ASR1603_NA_rti_switchout_null_deref.md",
+      "hash": "e7171f8f478f84e41c6c68e6429a9021",
+      "archived_at": "2026-06-16T20:08:13.922551",
+      "source_files": [
+        "Dump分析.md"
+      ],
+      "summary": {
+        "work_item_id": "NA",
+        "platform": "ASR1603",
+        "module": "TCP自动重建(nwy_tcpsrv_redial) / PPPREDIAL / RTI线程切换插桩",
+        "bug_type": "任务栈溢出→内存破坏→空指针解引用(DataAbort)，已修复",
+        "symptoms": [
+          "DataAbort",
+          "rti_thread_switch_out",
+          "空指针解引用",
+          "RTI记录全零",
+          "FAULT_ADDRESS=0xE59FF018",
+          "栈溢出",
+          "越界写",
+          "任务栈2048B",
+          "nwy_tcpsrv_redial",
+          "cisend"
+        ],
+        "root_cause": "新增的 TCP 自动重建任务 `nwy_tcpsrv_redial` 栈仅 2048B，在 ASR(Cortex-R+ThreadX+ASR TCP栈) 上执行 `nwy_app_tcp_server_setup/_v6` 深 TCP 建链调用时栈溢出，越界清零相邻堆内存中的 RTI per-thread 记录；当 nwy_cp_service 任务被上下文切换切出时，`rti_thread_switch_out` 读取该全零记录 → NULL 解引用读向量表得 0xE59FF018 → 再解引用未映射地址 → DataAbort 死机。栈改 8192 后实测不再死机。",
+        "call_chain_summary": "`AT+CFUN=0/1` 断网恢复 → data_cb → redial 任务 `nwy_yddl_tcpsrv_redial_server_func`(2048B栈) → `nwy_app_tcp_server_setup/_v6`(深栈,溢出) → 越界清零 RTI 记录 → 切出 nwy_cp_service → `switch_out` → `rti_thread_switch_out` 读 record[0]=0 → *(0xC)=0xE59FF018 → *(0xE59FF018) → DataAbort",
+        "keywords": [
+          "DataAbort",
+          "rti_thread_switch_out",
+          "switch_out",
+          "RTI记录全零",
+          "0xE59FF018",
+          "nwy_tcpsrv_redial",
+          "栈溢出",
+          "任务栈大小",
+          "NWY_TCPSRV_REDIAL_TASK_STACK_SIZE",
+          "跨平台移植栈大小",
+          "UIS8852到ASR",
+          "PPPREDIAL",
+          "TCPLISTEN",
+          "nwy_cp_service",
+          "ciRequest",
+          "nwy_app_tcp_server_setup",
+          "空指针解引用",
+          "越界写堆"
         ]
       }
     }
-  }
+  },
+  "schema_version": 1
 }
