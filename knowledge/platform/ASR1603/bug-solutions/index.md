@@ -1,6 +1,6 @@
 # bug 索引 - ASR1603
 
-> 自动生成于 2026-06-17 14:04，共 5 条
+> 自动生成于 2026-06-17 16:50，共 6 条
 
 | # | 工作项ID | 模块 | 症状关键词 | 根因方向 | 文件 |
 |---|---|---|---|---|------|
@@ -9,3 +9,4 @@
 | 3 | NA | FTP / LFS文件系统 | File Write Fail, LFS No more free space, FTP下载失败 | Flash文件系统(LFS)存储空间耗尽，`nwy_vfs_fwrite` 返回0，触发 `+FILEFTPGET... | [FILEFTPGET文件写入失败](FILEFTPGET文件写入失败.md) |
 | 4 | NA | FOTA / 启动加载 | DataAbort, FotaTrig死机, BIST残留, PSRAM未加载 | `NON_OTA_CODE_IN_PSRAM` 段未从Flash搬运到PSRAM，CPU执行BIST内存测试残留数... | [FotaTrig_DataAbort_代码段未加载](FotaTrig_DataAbort_代码段未加载.md) |
 | 5 | NA | TCP自动重建(nwy_tcpsrv_redial) / PPPREDIAL / RTI线程切换插桩 | DataAbort, rti_thread_switch_out, 空指针解引用, RTI记录全零, FAULT_ADDRESS=0xE59FF018, 栈溢出, 越界写, 任务栈2048B, nwy_tcpsrv_redial, cisend | 新增的 TCP 自动重建任务 `nwy_tcpsrv_redial` 栈仅 2048B，在 ASR(Cortex-... | [NA_rti_switchout_null_deref](ASR1603_NA_rti_switchout_null_deref.md) |
+| 6 | 7018786802 | AT 命令 / UDP 服务端 / IPv6 地址处理 | UDPSENDS ERROR、UDPRECV(S) 源 IP 错误、IPv6 地址截断、V6 链路收不到数据 | UDP 服务端 `+UDPRECV(S)` URC 生成时，`nwy_app_ip6addr_ntoa()` 入参... | [UDP_V6源地址上报错误](ASR1603_UDP_V6源地址上报错误.md) |

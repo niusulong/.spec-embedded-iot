@@ -175,6 +175,34 @@
           "越界写堆"
         ]
       }
+    },
+    "7018786802_UDP_V6源地址上报错误": {
+      "title": "UDP_V6源地址上报错误",
+      "work_item_id": "7018786802",
+      "file": "ASR1603_UDP_V6源地址上报错误.md",
+      "hash": "8b750e53b5a1f7ec3f12111b37a2847a",
+      "archived_at": "2026-06-17T16:50:18.644164",
+      "source_files": [
+        "报告.md"
+      ],
+      "summary": {
+        "work_item_id": "7018786802",
+        "platform": "ASR1603",
+        "module": "AT 命令 / UDP 服务端 / IPv6 地址处理",
+        "bug_type": "IPv6 地址格式化类型转换错误",
+        "symptoms": [
+          "UDPSENDS ERROR、UDPRECV(S) 源 IP 错误、IPv6 地址截断、V6 链路收不到数据"
+        ],
+        "root_cause": "UDP 服务端 `+UDPRECV(S)` URC 生成时，`nwy_app_ip6addr_ntoa()` 入参类型不匹配，将 `struct nwy_ps_in6_addr*` 直接强转 `void*` 当作 `nwy_ip_addr_type*` 使用，内部按 `addr->addr.v6`（偏移 type 字段后的 uint64[2]）读取，导致取到的 IPv6 地址只有后半段（4组），前半段丢失，生成的 URC 报告了错误且不完整的源 IPv6 地址",
+        "call_chain_summary": "`nwy_app_at_udp_server_cb` → `nwy_app_ip6addr_ntoa(&addr_v6->ps_sin6_addr)` ← 类型不匹配",
+        "keywords": [
+          "UDPSENDS ERROR",
+          "UDPRECV",
+          "IPv6 地址错误",
+          "ip6addr_ntoa",
+          "nwy_app_ip6addr_ntoa"
+        ]
+      }
     }
   },
   "schema_version": 1
