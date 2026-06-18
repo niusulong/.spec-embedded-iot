@@ -53,7 +53,7 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 | `spec-requirement-generator` | spec 整理需求 | Transform loose requirements into structured docs |
 | `spec-requirement-splitter` | spec 拆分需求 | Split complex requirements into smaller units |
 | `spec-solution-designer` | spec 设计方案、spec 技术方案 | Requirement → embedded technical solution (architecture / RTOS tasks / resource budget / protocol-stack compat / risks) |
-| `spec-implementation-planner` | spec 实施计划、spec 排期 | Solution → implementation plan (phases / WBS / acceptance), optional handoff to superpowers |
+| `spec-implementation-planner` | spec 实施计划、spec 排期 | Delegates to superpowers:writing-plans for a code-level executable plan (coding-standard compliant, spec output path, TDD stripped for embedded) |
 | `skill-creator` | 创建技能、create skill | Skill creation guide (meta-skill) |
 | `esafenet-file-io` | esafenet、加密文件 | EsafeNet encrypted file transparent read/write (Windows) |
 
