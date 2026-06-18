@@ -7,7 +7,7 @@ description: >-
   "spec 排期"、"spec 任务拆解"、"把这个方案拆成开发任务"时使用——只要用户意图是"基于 方案.md 做开发计划/
   排期/任务清单"，即使没有明说"计划"也应触发。边界：还在做技术选型/架构决策 → 回 spec-solution-designer
   （它以 需求.md 为输入）；要按计划逐步编码执行 → 可转交 superpowers:executing-plans。
-version: 1.2
+version: 1.3
 author: niusulong
 ---
 
@@ -18,6 +18,7 @@ author: niusulong
 4. **任务可独立验证**：粒度取"带自己验证周期的最小单元"；setup/配置/脚手架并入需要它的任务，只在"评审者能单独否决此项而通过相邻项"处切分
 5. **接口契约显式**：任务间产/消的接口名、签名要写明并保持一致，避免集成时名字对不上
 6. **可执行优先**：自带模板保证产出可用，superpowers 作为可选增强而非依赖
+7. **编码规范合规**：所有任务产出的代码须符合 Neoway 编码规范（`spec-neoway-coding-standards`：命名/注释/风格/宏控）——作为计划的 Global Constraint 写进 `计划.md`，使人工或 agent 执行都遵循
 
 ## 执行流程
 
@@ -114,7 +115,7 @@ author: niusulong
 
 **可观测判定（重要）**：仅当**当前可用技能列表里出现 `superpowers:writing-plans`** 时，才向用户提议转交；列表里没有就**完全不提** superpowers——`计划.md` 本身已是完整可用的项目级交付物。这把"优雅降级"变成一个可观测判断，而非模糊口号。
 
-转交时：对适合 agent 执行的任务（通常应用层、可隔离测试的部分），调 `superpowers:writing-plans` 展开、`superpowers:executing-plans` 执行。嵌入式很多任务靠上板/AT/抓包验证，不适合 writing-plans 的纯 TDD 步进——挑合适的任务转交，别一刀切。
+转交时：对适合 agent 执行的任务（通常应用层、可隔离测试的部分），调 `superpowers:writing-plans` 展开、`superpowers:executing-plans` 执行。嵌入式很多任务靠上板/AT/抓包验证，不适合 writing-plans 的纯 TDD 步进——挑合适的任务转交，别一刀切。**转交时明确要求**：所有生成的代码须符合 `spec-neoway-coding-standards`（命名/注释/风格/宏控）。
 
 ## 交互规则
 - 遇到技术选型/架构争议 → 引导："这是计划阶段，技术决策请回 spec-solution-designer 确认"
