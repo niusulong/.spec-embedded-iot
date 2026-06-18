@@ -25,6 +25,8 @@
 | `spec-neoway-coding-standards` | spec 编码规范、spec 代码规范 | Neoway 嵌入式 C 语言编码规范查询：编码风格、命名规范、注释规范 |
 | `spec-requirement-generator` | spec 整理需求、spec 生成需求文档 | 零散需求（口头描述、会议记录）→ 结构化需求文档 |
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求按功能模块拆分为小需求单元，生成拆分清单 |
+| `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案 | 需求 → 嵌入式技术方案：架构分层、RTOS 任务/并发、内存·功耗·时序预算、AT 与协议栈兼容、接口、风险 |
+| `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 实施计划：分期、WBS 任务拆解、验收点、验证矩阵，可选转交 superpowers 执行 |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码），覆盖 GCC/ARMCC/IAR/MSVC 工具链 |
 | `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet（天锐绿盾）加密文件透明读写（仅 Windows） |
 | `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
@@ -94,6 +96,16 @@ knowledge/                      # 跨项目持久化知识库
 1. spec 了解项目             → 生成项目概览文档
 2. spec 模块实现              → 逐模块生成代码总结
 3. 同步知识库                 → 归档到持久化知识库
+```
+
+### 需求 → 方案 → 计划
+
+```
+1. spec 整理需求             → 生成 .spec/requirement/{项目ID}_{功能}/需求.md
+2. spec 拆分需求（可选）      → 大需求拆分为子单元
+3. spec 设计方案             → 需求.md → 方案.md（嵌入式技术方案，同目录并排）
+4. spec 实施计划             → 方案.md → 计划.md（分期/任务/验收点，同目录并排）
+5. [可选] 转交 superpowers   → writing-plans / executing-plans 自动执行
 ```
 
 ## 许可证

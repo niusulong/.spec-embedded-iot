@@ -36,6 +36,8 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 | `spec-neoway-coding-standards` | spec 编码规范、spec 代码规范 | Neoway C 编码规范查询 |
 | `spec-requirement-generator` | spec 整理需求、spec 生成需求文档 | 零散需求 → 结构化需求文档 |
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求拆分为小单元 |
+| `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案、技术选型 | 需求 → 嵌入式技术方案（架构/RTOS任务/资源预算/协议栈兼容/接口/风险） |
+| `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 实施计划（分期/任务/验收点），可选转交 superpowers 执行 |
 | `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
 | `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet 加密文件透明读写（仅 Windows） |
 
@@ -52,5 +54,5 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 |------|------|
 | `.spec/logs/` | 项目日志文件 |
 | `.spec/bug/{工作项ID}_{描述}/` | Bug 分析报告和日志归档 |
-| `.spec/requirement/` | 需求文档 |
+| `.spec/requirement/{项目ID}_{核心功能}/` | 需求(需求.md)、技术方案(方案.md)、实施计划(计划.md) 同目录并排 |
 | `~/.agents/knowledge/` | 跨项目持久化知识库 |
