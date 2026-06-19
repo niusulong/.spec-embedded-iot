@@ -11,5 +11,8 @@ docs/
 bash.exe.stackdump
 CLAUDE.md
 
+# Skill eval 工作区（skill-creator 评估产物：技能快照/测试输出/benchmark/viewer，临时不入库）
+*-workspace/
+
 # Python 缓存
 __pycache__/

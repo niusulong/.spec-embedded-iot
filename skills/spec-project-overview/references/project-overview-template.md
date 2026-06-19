@@ -72,7 +72,7 @@
 
 ### 5.1 目录树
 
-[显示2-3层深度，排除 build/, out/, .git/]
+[显示2-3层深度，排除 build/, out/, gccout/, .git/, prebuilts/, tools/, samples/ 及第三方源码树]
 
 ```
 项目根目录/
@@ -116,8 +116,10 @@
 
 | 类型 | 位置 | 说明 |
 |------|------|------|
-| 启动入口 | [如：arch/arm/startup.S] | 系统启动汇编代码 |
-| 主函数 | [如：applications/main.c] | C语言入口函数 |
+| 启动汇编 | [如：startup.S / vectors.c] | 复位向量、系统启动代码 |
+| 启动组件 | [如：components/appstart、apploader] | 平台/app 加载入口（组件式 SDK 常见） |
+| 应用入口 | [如：nwy_project/ 下的 app_init / app_main] | 业务代码真正的起点 |
+| 主函数 | [如：xxx/main.c（须确认非第三方示例）] | C 入口（若存在，排除 samples/prebuilts） |
 
 ## 9. 后续分析建议
 
