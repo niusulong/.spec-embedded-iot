@@ -1,5 +1,6 @@
-# Generated vector database
-knowledge/vector_db/
+# knowledge 是独立 git 仓库（knowledge/.git），不在主仓库追踪
+# 内部向量库 vector_db/ 为生成产物，由 embed_indexer.py build 重建
+knowledge/
 
 # 仅追踪 spec-* 技能；其它技能（esafenet-file-io、skill-creator、pdf、docs 等）不入库
 skills/*
