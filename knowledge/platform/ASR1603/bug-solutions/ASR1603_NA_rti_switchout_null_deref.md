@@ -21,7 +21,7 @@
 | **模块** | TCP自动重建(nwy_tcpsrv_redial) / PPPREDIAL / RTI线程切换插桩 |
 | **问题分类** | 任务栈溢出→内存破坏→空指针解引用(DataAbort)，已修复 |
 | **症状关键词** | DataAbort, rti_thread_switch_out, 空指针解引用, RTI记录全零, FAULT_ADDRESS=0xE59FF018, 栈溢出, 越界写, 任务栈2048B, nwy_tcpsrv_redial, cisend |
-| **根因概述** | 新增的 TCP 自动重建任务 `nwy_tcpsrv_redial` 栈仅 2048B，在 ASR(Cortex-R+ThreadX+ASR TCP栈) 上执行 `nwy_app_tcp_server_setup/_v6` 深 TCP 建链调用时栈溢出，越界清零相邻堆内存中的 RTI per-thread 记录；当 nwy_cp_service 任务被上下文切换切出时，`rti_thread_switch_out` 读取该全零记录 → NULL 解引用读向量表得 0xE59FF018 → 再解引用未映射地址 → DataAbort 死机。栈改 8192 后实测不再死机。 |
+| **根因概述** | 新增的 TCP 自动重建任务 `nwy_tcpsrv_redial` 栈仅 2048B，在 ASR(Cortex-R+ThreadX+ASR TCP栈) 上执行 `nwy_app_tcp_server_setup/_v6` 深 TCP 建链调用时栈溢出，越界清零相邻堆内存中的 RTI per-thread 记录；当 nwy_cp_service 任务被上下文切换切出时，`rti_thread_switch_out` 读取该全零记录 → NULL 解引用读向量表得 0xE59FF018 → 再解引用未映射地址 → DataAbort 死机。栈改 4096 后实测不再死机。 |
 | **调用链摘要** | `AT+CFUN=0/1` 断网恢复 → data_cb → redial 任务 `nwy_yddl_tcpsrv_redial_server_func`(2048B栈) → `nwy_app_tcp_server_setup/_v6`(深栈,溢出) → 越界清零 RTI 记录 → 切出 nwy_cp_service → `switch_out` → `rti_thread_switch_out` 读 record[0]=0 → *(0xC)=0xE59FF018 → *(0xE59FF018) → DataAbort |
 | **检索关键词** | DataAbort, rti_thread_switch_out, switch_out, RTI记录全零, 0xE59FF018, nwy_tcpsrv_redial, 栈溢出, 任务栈大小, NWY_TCPSRV_REDIAL_TASK_STACK_SIZE, 跨平台移植栈大小, UIS8852到ASR, PPPREDIAL, TCPLISTEN, nwy_cp_service, ciRequest, nwy_app_tcp_server_setup, 空指针解引用, 越界写堆 |
 
@@ -33,7 +33,7 @@
 
 - **根因**：本次新增的 TCP 自动重建任务 `nwy_tcpsrv_redial` 栈仅 **2048 字节**，在 ASR（Cortex-R + ThreadX + ASR TCP 栈）上执行 `nwy_app_tcp_server_setup/_v6`（TCP 建链深调用栈）时**栈溢出**，越界写坏相邻堆内存——其中包含被切出线程的 RTI per-thread 记录，使其被清零。
 - **证据吻合**：dump 中栈溢出的匿名 "Init" 线程栈 **2044 字节**（见 §8），与 `nwy_tcpsrv_redial` 声明的 2048 字节几乎一致（差值 4 为 ThreadX 栈开销/对齐），即**该溢出线程就是 nwy_tcpsrv_redial**。
-- **修复**：`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 由 `2048` 改为 `8192`（与 LED / fota_http 等网络任务一致），位于 `pcac/NWY_FRAMEWORK/atcmd/nwy_at_proc/src/nwy_app_at_func_tcp.c:6143`。
+- **修复**：`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 由 `2048` 改为 `4096`（最终上传版本；调试阶段曾试 8192，确认 4096 已足够），位于 `pcac/NWY_FRAMEWORK/atcmd/nwy_at_proc/src/nwy_app_at_func_tcp.c:6143`。
 - **验证**：重跑复现用例（`AT+PPPREDIAL=10` + `AT+TCPLISTEN=9600` + 反复 `AT+CFUN=0/1` 断网恢复），**不再死机**。
 - **平台差异教训**：2048 字节在源平台 UIS8852（RISC-V）上够用，但 ASR（Cortex-R + ThreadX + 自有 TCP 栈）调用约定与栈开销不同，跨平台移植网络类任务**不能直接照搬栈大小**，需按目标平台实测复核。
 
@@ -178,7 +178,7 @@ nwy_yddl_tcpsrv_redial_server_func
 
 ### 8.3 修复
 
-`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE`：`2048` → **`8192`**（与 LED / fota_http 等网络任务一致）。实测复现用例 **不再死机**。
+`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE`：`2048` → **`4096`**（最终上传版本；调试阶段曾试 8192，实测 4096 已足够）。实测复现用例 **不再死机**。
 
 ### 8.4 其它任务栈使用率偏高（系统级，建议同步评估）
 
@@ -195,7 +195,7 @@ ee_type=450 EXCEPTION
         ├─ 直接触发点：rti_thread_switch_out 空指针解引用（崩溃机制）
         └─ 根本原因（已确认）：nwy_tcpsrv_redial 任务栈 2048B 不足 → 建链深栈溢出
               → 越界清零相邻堆中的 RTI 记录（§8）
-              ⇒ 根因：nwy_tcpsrv_redial 任务栈溢出破坏 RTI 记录；栈改 8192 后已修复
+              ⇒ 根因：nwy_tcpsrv_redial 任务栈溢出破坏 RTI 记录；栈改 4096 后已修复
 ```
 
 ## 十、复现路径（已实测确认）
@@ -217,14 +217,14 @@ AT+CFUN=1              → +PBREADY2                           (重连)
 
 反复执行 `AT+CFUN=0/1` 断网恢复循环（每次重连触发一次 TCP 重建），数轮内即可触发死机。
 
-**修复后验证**：将 `NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 改为 8192 后，重跑同样用例（多轮 `CFUN=0/1` + `PPPREDIAL=10` + `TCPLISTEN`），**不再死机** → 根因确认。
+**修复后验证**：将 `NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 改为 4096 后，重跑同样用例（多轮 `CFUN=0/1` + `PPPREDIAL=10` + `TCPLISTEN`），**不再死机** → 根因确认。
 
 ## 十一、修复状态与建议
 
 ### 已实施并验证 ✅
 
-1. **【根因修复·已完成】** `nwy_tcpsrv_redial` 任务栈 `2048` → **`8192`**（`nwy_app_at_func_tcp.c:6143`）。实测复现用例不再死机。
-   - 该值与同仓 LED / fota_http 等网络任务一致；后续可按运行时栈水位再评估是否需进一步上调（如 16KB）。
+1. **【根因修复·已完成】** `nwy_tcpsrv_redial` 任务栈 `2048` → **`4096`**（最终上传版本，`nwy_app_at_func_tcp.c:6143`）。实测复现用例不再死机。
+   - 调试阶段曾试 8192，实测 4096 已足够；后续可按运行时栈水位再评估是否需进一步上调（如 8KB/16KB）。
 
 ### 已排查并排除（初版假设）
 
@@ -249,7 +249,7 @@ AT+CFUN=1              → +PBREADY2                           (重连)
 | 0xE59FF018 | FAULT_ADDRESS = `LDR PC,[PC,#0x18]` 复位向量码 | com_EE_Hbuf FAR |
 | 0x7E0C1980 | 栈溢出线程 TCB = **`nwy_tcpsrv_redial` 任务**（栈 2044B，声明 2048B） | scan-threads + 源码 |
 | nwy_cp_service.c:1494 | 被切出瞬间执行点（cisend primID 9） | 栈上调试串 + 源码 |
-| nwy_app_at_func_tcp.c:6143 | **根因修复点**：`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 2048→8192 | 源码 |
+| nwy_app_at_func_tcp.c:6143 | **根因修复点**：`NWY_TCPSRV_REDIAL_TASK_STACK_SIZE` 2048→4096 | 源码 |
 
 ## 附录 B：DDR 基址与校验
 

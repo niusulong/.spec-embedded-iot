@@ -103,24 +103,36 @@
       ],
       "summary": {
         "platform": "ASR1603",
-        "module": "FOTA / 启动加载",
-        "bug_type": "代码段未加载(DataAbort)",
+        "module": "FOTA / 启动加载 / scatter 段放置",
+        "bug_type": "代码段设计矛盾（已修复）",
         "symptoms": [
           "DataAbort",
           "FotaTrig死机",
+          "FOTA循环测试死机",
+          "mini.sys.enable",
+          "NON_OTA段未加载",
           "BIST残留",
-          "PSRAM未加载"
+          "PSRAM未加载",
+          "Permission fault"
         ],
-        "root_cause": "`NON_OTA_CODE_IN_PSRAM` 段未从Flash搬运到PSRAM，CPU执行BIST内存测试残留数据(0xAA/0x55)触发Permission fault，FAULT_ADDRESS=0x4",
-        "call_chain_summary": "`fota_trigger_worker_thread()` (PL_CODE_IN_PSRAM,已加载) → `nwy_fota_get_reboot_count()` (NON_OTA_CODE_IN_PSRAM,未加载) → BIST残留 → DataAbort",
+        "root_cause": "FOTA 重试机制的 NV 读写函数（nwy_fota_get/set_reboot_count）被 scatter 通配符 *nota-nota.lib (+RO) 归入 NON_OTA_CODE_IN_PSRAM 段，但 mini system 模式(mini.sys.enable=1)启动时该段被跳过不加载，PSRAM 该区域保留硬件 BIST checkerboard 填充(0xAA/0x55)；而重试逻辑仅在 mini system 模式下运行——造成「必须执行的代码位于无法加载的段」这一设计矛盾。CPU 跨段调用时执行 BIST 残留数据 movs r0,#0xAA → strh r2,[r5,#4](R5=0)，访问 0x4 → Permission fault → DataAbort。修复：将 4 个 NV 函数从 nwy_at_fota.c(NON_OTA) 迁移到 download.c(PL_CODE)，改用 FDI_fopen/fread/fwrite API，已验证通过。",
+        "call_chain_summary": "fota_trigger_worker_thread() (PL_CODE_IN_PSRAM, 已加载) → nwy_fota_get_reboot_count() (NON_OTA_CODE_IN_PSRAM, mini.sys.enable=1 时未加载) → PSRAM 保留 BIST checkerboard → movs r0,#0xAA; strh r2,[r5,#4](R5=0) → 访问 0x4 → Permission fault → DataAbort",
         "keywords": [
           "DataAbort",
           "FotaTrig",
+          "FOTA循环测试死机",
           "NON_OTA_CODE_IN_PSRAM",
-          "BIST",
+          "mini.sys.enable",
+          "mini system",
+          "BIST checkerboard",
+          "0xAA 0x55",
           "代码段未加载",
           "nwy_fota_get_reboot_count",
-          "scatter"
+          "scatter",
+          "nota-nota.lib",
+          "Permission fault",
+          "段放置矛盾",
+          "PL_CODE_IN_PSRAM"
         ],
         "work_item_id": "NA"
       },
@@ -201,6 +213,41 @@
           "IPv6 地址错误",
           "ip6addr_ntoa",
           "nwy_app_ip6addr_ntoa"
+        ]
+      }
+    },
+    "7017934398_FTP控制链路压测异常断开": {
+      "title": "FTP控制链路压测异常断开",
+      "work_item_id": "7017934398",
+      "file": "ASR1603_FTP控制链路压测异常断开.md",
+      "hash": "a5e7c2e9867b617a39cc6eb6d25874d7",
+      "archived_at": "2026-06-22T14:53:17.872009",
+      "source_files": [
+        "Bug分析.md"
+      ],
+      "summary": {
+        "work_item_id": "7017934398",
+        "platform": "ASR1603",
+        "module": "FTP 客户端（pcac/duster/src/ftp_client.c + pcac/NWY_FRAMEWORK AT 层）",
+        "bug_type": "协议异常 + 状态机异常（非空闲超时/非 keepalive 缺失）",
+        "symptoms": [
+          "Server Control Link Disconnect",
+          "Error Not Login",
+          "PASV/STOR",
+          "FTP 压测概率性断开",
+          "服务器 RST"
+        ],
+        "root_cause": "服务器（FileZilla Server 0.9.60 beta）在一次 PASV 后异常连发两条 227（端口 65448→1052），FTP 控制链路协议状态机失步；模块端 STOR 后等待 150 的 while 循环对“非 150/125/非 -1”的应答无界循环、无重试上限，被动消耗服务器持续回吐的 227 约 21 秒，最终服务器主动 RST 控制链路；模块 5 秒定时器 reactive 检测到 socket 关闭 → 上报 \"+FTP: Server Control Link Disconnect\"，后续 AT+FTPPUT 返回 \"Error Not Login\"。",
+        "call_chain_summary": "AT+FTPPUT → nwy_app_ftp_put_file → send_ftpcmd(\"STOR\") → get_ftpreply while 无界循环（消费垃圾 227）→ 服务器 RST 控制链路 → readline 返回 -1 → gftp_timer(5s) select() → ftp_close() → MI_UCR_FTP_CLOSE_IND → nwy_ftp_rsp_cb(NWY_SOCKET_CLOSED) → \"+FTP: Server Control Link Disconnect\" → 下一条 AT+FTPPUT → nwy_app_ftp_status()=NOT_EXIST → \"Error Not Login\"",
+        "keywords": [
+          "FTP 控制链路断开",
+          "Server Control Link Disconnect",
+          "PASV 227 重复",
+          "STOR 150 等待",
+          "FileZilla RST",
+          "Error Not Login",
+          "ftp_tout_cmd_parse",
+          "get_ftpreply while"
         ]
       }
     }

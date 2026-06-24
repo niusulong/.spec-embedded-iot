@@ -7,7 +7,7 @@ description: >-
   只要意图是"搞懂某个模块内部怎么实现的"，即使没明说"总结"也应触发。
   边界：要项目整体布局/目录级全景 → 用 spec-project-overview；要查 C 编码规范 → 用 spec-neoway-coding-standards；
   要生成需求/方案/计划 → 用 spec-requirement-generator 等；本技能只做"单模块函数级实现"的深入，不扫描整项目。
-version: 1.2
+version: 1.4
 author: niusulong
 ---
 
@@ -118,13 +118,20 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 - **使用模板**：读 `references/code-summary-template.md`，填占位符后输出。
 - §8「关键日志检索字段」的字段值必须是**代码里真实出现的字面量**（含大小写、`0x` 前缀、`CME ERROR:` 的冒号空格），每条带出处（函数:行）——这是给 spec-bug-analyzer / spec-memory-leak-analyzer 直接 grep 用的，描述或编造都没价值。
 
-### Step 5：完整性检查 + 归档衔接
+### Step 5：完整性检查 + 自动纳入向量索引
 
 - 范围自查：若该功能域在项目里有 AT 命令层 / 业务入口而总结未覆盖，回到 Step 1.2 重新界定（避免把 demo 或适配层当成全部）。
 - 模板章节齐全；识别不到的章节明确写"未识别到，原因…"，**不留空更不编造**（§8 若模块无日志输出要说明）。
 - Mermaid 代码块闭合、表格格式正确、引用链接有效。
 - §8 字段值可 grep：抽查 2-3 个关键字能否用 `Grep` 在源码里命中。
-- 生成后提示：可运行 `spec-knowledge-archiver` 纳入向量索引，供 bug 分析 / 方案设计检索复用。
+- **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-solution-designer 等后续技能能按语义检索到本总结（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
+  ```bash
+  python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection code-summary
+  ```
+  （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
+  - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。
+  - **失败**（脚本异常 / Python 缺失 / 首次需下载约 450MB 嵌入模型）：**不中止**——文档已落盘、按路径引用不受影响，索引只是检索增强。给一句警告，并提示可稍后手动跑 `spec-knowledge-archiver` 补救。
+  - **跳过**：若用户本次明确说"先不索引 / 跳过索引"，则跳过本步。
 
 ## 模块依赖识别方法
 
@@ -143,10 +150,6 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 | 配置表 | 查 const 数组、config 表 |
 | 虚函数表 | 查函数指针结构体 |
 | Weak 函数 | 查 `__attribute__((weak))` |
-
-## 加密文件提示
-
-若 `Read` 返回乱码或读不到内容，源码可能被 EsafeNet（绿盾）加密——转用 `esafenet-file-io` 技能透明读写（仅 Windows）。
 
 ## 输出格式要求
 

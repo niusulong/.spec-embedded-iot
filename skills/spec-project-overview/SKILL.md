@@ -7,7 +7,7 @@ description: >-
   只要用户意图是"了解项目整体布局 / 有哪些模块 / 怎么编译 / 从哪启动"，即使没明说"概览"也应触发。
   边界：要深入某个模块的代码实现 → 用 spec-code-summary；要查 C 编码规范 → 用 spec-neoway-coding-standards；
   要生成需求/方案/计划 → 用 spec-requirement-generator 等；本技能只做目录级全景，不解析具体函数实现。
-version: 1.2
+version: 1.3
 author: niusulong
 ---
 
@@ -99,10 +99,17 @@ Glob(pattern="**/*.mk",            path=<project_path>)
 - 目录树限 2-3 层，排除第 3 步列出的目录。
 - "模块清单"和"建议深入分析的功能域"必须落到真实存在的目录，并在"后续分析建议"里把 spec-code-summary 作为推荐工具。
 
-### 6. 完整性检查 + 归档衔接
+### 6. 完整性检查 + 自动纳入向量索引
 
 - 模板 9 个章节齐全；识别不到的章节要明确写出"未识别到，原因…"，**不要留空更不要编造**。
-- 生成后提示用户：可运行 `spec-knowledge-archiver` 把概览纳入向量索引，供后续 bug 分析 / 方案设计检索复用。
+- **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-code-summary 等后续技能能按语义检索到本概览（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
+  ```bash
+  python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection project-overview
+  ```
+  （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
+  - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。
+  - **失败**（脚本异常 / Python 缺失 / 首次需下载约 450MB 嵌入模型）：**不中止**——文档已落盘、按路径引用不受影响，索引只是检索增强。给一句警告，并提示可稍后手动跑 `spec-knowledge-archiver` 补救。
+  - **跳过**：若用户本次明确说"先不索引 / 跳过索引"，则跳过本步。
 
 ## 加密文件提示
 
