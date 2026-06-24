@@ -2,7 +2,7 @@
 name: spec-knowledge-archiver
 description: >
   项目文档归档与知识库向量索引工具。将项目 .spec/bug 和 .spec/requirement 目录下的分析文档归档到
-  持久化知识库 (~/.agents/knowledge/platform/{平台}/)。支持单个归档、批量归档、
+  持久化知识库 (~/.spec-embedded-iot/knowledge/platform/{平台}/)。支持单个归档、批量归档、
   增量归档、自动合并多文件、生成索引、自动更新向量索引、完整性校验。同时支持对
   code-summary、official-docs-md、project-overview、protocols 等多种知识类型构建
   向量索引与统一语义检索。按芯片平台路径隔离。
@@ -133,7 +133,7 @@ python scripts/embed_search.py "死机" --top 10 --json
 
 ## 配置文件
 
-路径: `~/.agents/knowledge/knowledge_config.json`
+路径: `~/.spec-embedded-iot/knowledge/knowledge_config.json`
 
 配置包含：
 - `doc_types`: 归档脚本使用的文档类型（源目录、目标目录、索引列、摘要字段）

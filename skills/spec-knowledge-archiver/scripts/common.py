@@ -16,7 +16,7 @@ import threading
 
 KNOWLEDGE_ROOT = os.path.join(
     os.environ.get("USERPROFILE", os.path.expanduser("~")),
-    ".agents", "knowledge"
+    ".spec-embedded-iot", "knowledge"
 )
 VECTOR_DB_PATH = os.path.join(KNOWLEDGE_ROOT, "vector_db")
 CONFIG_FILE = os.path.join(KNOWLEDGE_ROOT, "knowledge_config.json")

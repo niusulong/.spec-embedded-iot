@@ -34,7 +34,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
 
 **中央知识库**（跨项目持久化，独立于代码仓库）：
 ```
-~/.agents/knowledge/platform/{平台名}/
+~/.spec-embedded-iot/knowledge/platform/{平台名}/
   ├── 项目概览.md                        -- 由 spec-project-overview 生成
   └── code-summary/{模块名}/代码总结.md   -- 由 spec-code-summary 生成
 ```
@@ -63,7 +63,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
   └── bug/           (Bug 分析报告，按需创建)
 
 中央知识库（跨项目持久化）：
-  ~/.agents/knowledge/platform/{平台名}/
+  ~/.spec-embedded-iot/knowledge/platform/{平台名}/
   ├── 项目概览.md
   └── code-summary/  (模块代码总结，按需创建)
 

@@ -59,7 +59,7 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 
 ## Knowledge Base
 
-**Path:** `~/.agents/knowledge/platform/{platform}/`
+**Path:** `~/.spec-embedded-iot/knowledge/platform/{platform}/`
 
 **Search command:**
 ```bash

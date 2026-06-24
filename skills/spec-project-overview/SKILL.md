@@ -35,8 +35,8 @@ author: niusulong
 
 - 检查项目下 `.spec/` 是否存在；不存在则提示用户先跑 `spec-init`，但概览本身不依赖它，可继续。
 - 知识库输出路径（Windows 下 `~` 需展开为 `C:\Users\<用户>\`）：
-  `C:\Users\<用户>\.agents\knowledge\platform\<平台名>\项目概览.md`
-  （在 bash 里等价于 `~/.agents/knowledge/platform/<平台名>/项目概览.md`）
+  `C:\Users\<用户>\.spec-embedded-iot\knowledge\platform\<平台名>\项目概览.md`
+  （在 bash 里等价于 `~/.spec-embedded-iot/knowledge/platform/<平台名>/项目概览.md`）
 
 ### 3. 扫描项目结构
 

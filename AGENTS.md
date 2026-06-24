@@ -28,4 +28,4 @@ Search the knowledge base via command line:
 python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {platform} --top 5
 ```
 
-Knowledge base path: `~/.agents/knowledge/platform/{platform}/`
+Knowledge base path: `~/.spec-embedded-iot/knowledge/platform/{platform}/`

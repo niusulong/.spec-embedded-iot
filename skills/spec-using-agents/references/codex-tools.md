@@ -26,7 +26,7 @@ python ../spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {
 To read a knowledge base entry:
 
 ```bash
-cat ~/.agents/knowledge/platform/{platform}/bug-solutions/{filename}.md
+cat ~/.spec-embedded-iot/knowledge/platform/{platform}/bug-solutions/{filename}.md
 ```
 
 ## Subagent Dispatch

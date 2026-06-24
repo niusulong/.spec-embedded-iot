@@ -4,14 +4,14 @@
 
 ## 知识库
 
-路径：`~/.agents/knowledge/platform/{平台名}/`
+路径：`~/.spec-embedded-iot/knowledge/platform/{平台名}/`
 
 | 内容 | 路径 | 说明 |
 |------|------|------|
 | 项目概览 | `{平台}/项目概览.md` | 由 spec-project-overview 生成 |
 | 代码总结 | `{平台}/code-summary/{模块}/代码总结.md` | 由 spec-code-summary 生成 |
 | Bug 解决方案 | `{平台}/bug-solutions/` | 由 spec-knowledge-archiver 归档 |
-| 向量索引 | `~/.agents/knowledge/vector_db/` | ChromaDB 语义检索 |
+| 向量索引 | `~/.spec-embedded-iot/knowledge/vector_db/` | ChromaDB 语义检索 |
 
 **当前平台**：从项目路径自动推断（如 `D:\EC626\` → `EC626`），也可手动指定。
 
@@ -55,4 +55,4 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 | `.spec/logs/` | 项目日志文件 |
 | `.spec/bug/{工作项ID}_{描述}/` | Bug 分析报告和日志归档 |
 | `.spec/requirement/{项目ID}_{核心功能}/` | 需求(需求.md)、技术方案(方案.md)、实施计划(计划.md) 同目录并排 |
-| `~/.agents/knowledge/` | 跨项目持久化知识库 |
+| `~/.spec-embedded-iot/knowledge/` | 跨项目持久化知识库 |

@@ -78,7 +78,7 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
    - 优先从用户输入获取；
    - 或从项目路径推断（如 `D:\EC626\` → `EC626`）。
    > 注意：平台名只代表芯片系列，**不代表 OS**。OS 看 kernel 目录的实际源码（freertos 的 tasks.c / ThreadX 的 tx_ 前缀），不要凭平台名猜。
-3. 知识库输出路径：`~/.agents/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
+3. 知识库输出路径：`~/.spec-embedded-iot/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
    （Windows 下 `~` 展开为 `C:\Users\<用户>\`）。
 
 ### Step 3：代码分析与文档生成
@@ -114,7 +114,7 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 
 ### Step 4：生成结构化文档
 
-- **输出路径**：`~/.agents/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
+- **输出路径**：`~/.spec-embedded-iot/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
 - **使用模板**：读 `references/code-summary-template.md`，填占位符后输出。
 - §8「关键日志检索字段」的字段值必须是**代码里真实出现的字面量**（含大小写、`0x` 前缀、`CME ERROR:` 的冒号空格），每条带出处（函数:行）——这是给 spec-bug-analyzer / spec-memory-leak-analyzer 直接 grep 用的，描述或编造都没价值。
 
