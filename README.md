@@ -1,5 +1,7 @@
 # Spec Embedded IoT — 嵌入式 IoT 开发技能库 & 知识库
 
+> 仓库：https://github.com/niusulong/.spec-embedded-iot
+
 面向嵌入式软件开发的 Claude Code 插件，提供 Bug 根因分析、Crash Dump 分析、代码总结，以及"需求→方案→实施计划"完整需求实现链路，配合跨项目知识库语义检索等专业技能，按芯片平台组织知识库。
 
 ## 安装
@@ -7,7 +9,7 @@
 在 Claude Code 会话中执行：
 
 ```
-/plugin marketplace add niusulong/spec_v2
+/plugin marketplace add niusulong/.spec-embedded-iot
 /plugin install spec-embedded-iot@spec-embedded-iot
 ```
 
