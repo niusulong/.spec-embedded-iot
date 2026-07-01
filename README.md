@@ -29,9 +29,7 @@
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求按功能模块拆分为小需求单元，生成拆分清单 |
 | `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案 | 需求 → 嵌入式技术方案：架构分层、RTOS 任务/并发、内存·功耗·时序预算、AT 与协议栈兼容、接口、风险 |
 | `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 委托 superpowers:writing-plans 产出代码级实施计划（内嵌代码步骤、no-placeholders）；硬约束：编码规范合规 + 输出 spec 路径 + 去 TDD 改嵌入式验证 |
-| `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码），覆盖 GCC/ARMCC/IAR/MSVC 工具链 |
-| `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet（天锐绿盾）加密文件透明读写（仅 Windows） |
-| `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
+| `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码），覆盖 GCC/ARMCC/IAR/MSVC 
 
 ## 知识库
 

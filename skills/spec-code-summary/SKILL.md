@@ -7,7 +7,7 @@ description: >-
   只要意图是"搞懂某个模块内部怎么实现的"，即使没明说"总结"也应触发。
   边界：要项目整体布局/目录级全景 → 用 spec-project-overview；要查 C 编码规范 → 用 spec-neoway-coding-standards；
   要生成需求/方案/计划 → 用 spec-requirement-generator 等；本技能只做"单模块函数级实现"的深入，不扫描整项目。
-version: 1.4
+version: 1.5
 author: niusulong
 ---
 
@@ -107,7 +107,7 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 1. 目录结构 → 文件组织、关键文件及优先级（→ §3 代码结构）
 2. 数据结构 / 接口 → 结构体、枚举、API、回调（→ §5、§6）
 3. 实现机制 → 核心流程、状态机、错误处理（→ §7）
-4. **日志检索字段** → 从代码里真实的 `LOG_*`/`printf`/`NWY_APP_LOG_*`/`OSI_LOGI` 调用提取可供 grep 的字面量：模块 TAG、任务名、错误码、状态字符串、URC、malloc/free 入口（→ §8）
+4. **日志检索字段** → 从代码里真实的 `LOG_*`/`printf`/`NWY_APP_LOG_*`/`OSI_LOGI` 调用提取可供 grep 的字面量：模块 TAG、任务名、错误码、状态字符串、URC、malloc/free 入口（→ §8）。其中 **§8.0 快速检索清单**只产出**关键字**（按用途分组、默认可见的高价值串），是 spec-bug-analyzer 的关键字来源；analyzer 按场景自决用法（大文件喂 `log_analyzer.py -k`、小文件 `grep -E`），本技能不规定调用方式。§8.1–§8.6 是带出处/可见性/含义的详尽字典。
 5. 模块依赖 → 确定引用内容，避免与已有总结重复（→ §4）
 
 **第三方库边界**：很多模块是"对第三方原始库的封装/适配"（如 libcoap、mbedtls、lwip、littlefs）。分析聚焦**本项目的封装/适配层**；被封装的第三方原始库只在 §4 模块依赖关系里提及其名称与版本，不深入分析其内部实现。
@@ -116,7 +116,7 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 
 - **输出路径**：`~/.spec-embedded-iot/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
 - **使用模板**：读 `references/code-summary-template.md`，填占位符后输出。
-- §8「关键日志检索字段」的字段值必须是**代码里真实出现的字面量**（含大小写、`0x` 前缀、`CME ERROR:` 的冒号空格），每条带出处（函数:行）——这是给 spec-bug-analyzer / spec-memory-leak-analyzer 直接 grep 用的，描述或编造都没价值。
+- §8「关键日志检索字段」的字段值必须是**代码里真实出现的字面量**（含大小写、`0x` 前缀、`CME ERROR:` 的冒号空格），每条带出处（函数:行）——这是给 spec-bug-analyzer / spec-memory-leak-analyzer 直接 grep 用的，描述或编造都没价值。**§8.0 快速检索清单**只列**默认可见**的关键字（按分组，纯字面量不拼成 pipe 串），让 analyzer 灵活编排进 `log_analyzer.py -k` 或 `grep -E`；关键字数控制在覆盖本模块关键流程/错误即可（通常每组 ≤10 个）。
 
 ### Step 5：完整性检查 + 自动纳入向量索引
 

@@ -10,7 +10,7 @@ description: >-
   改用 spec-ec-dump-analyzer（EC616/EC626/Cortex-M）或 spec-asr-dump-analyzer（ASR/Cortex-R）；
   若分析确认根因是内存泄漏且需要精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
-version: 3.1
+version: 3.3
 author: niusulong
 ---
 
@@ -25,14 +25,47 @@ author: niusulong
 
 ## 平台识别
 
-平台决定知识库检索范围和 crash dump 的分派目标，分析开始前先识别当前平台。
+平台决定知识库检索范围（向量检索 `--platform`）与 crash dump 的分派目标，分析开始前先识别当前平台。
 
-| 平台 | 架构/系统 | 识别线索 |
-|------|-----------|----------|
-| **EC**（EC616/EC626/EC626E） | Cortex-M + FreeRTOS | 项目路径含 `EC616`/`EC626`；日志含 `memp_malloc`、`excep_store`、`sys_thread`、`tcpip_thread`(LWIP)、`nv_` 参数、含文件名:行号的 `assert` |
-| **ASR** | Cortex-R + ThreadX | 项目路径含 `ASR`/`Marconi`；日志含 `tx_thread`/`tx_` 前缀、`[threadx]`、PSRAM、AXF；crash 为 `DataAbort`/`PrefetchAbort` |
+### 权威来源：当前 git 仓库名
 
-无法从日志/路径判断时，直接询问用户所属平台，不要默认假设。
+每个平台代码仓内，**仓库名即平台名**——以仓库名为权威来源，不要从日志/路径关键字猜测。分析开始时执行：
+
+```bash
+# 1) 取当前仓库名（平台名候选）
+basename "$(git rev-parse --show-toplevel)"
+# 2) 取当前分支（填入 Section 0 摘要的「当前分支」字段）
+git rev-parse --abbrev-ref HEAD
+```
+
+### 1. 确定检索平台（知识库 `--platform`）
+
+将仓库名映射到知识库 `~/.spec-embedded-iot/knowledge/platform/` 下已有的平台目录。**先列目录**确认可选项：
+
+```bash
+ls ~/.spec-embedded-iot/knowledge/platform/
+```
+
+| 仓库名（大小写不敏感） | 平台名（`--platform`） | 架构/系统 |
+|----------------------|----------------------|-----------|
+| 含 `EC626`（如 `EC626`、`ec626_firmware`） | `EC626` | Cortex-M + FreeRTOS |
+| 含 `ASR1603` | `ASR1603` | Cortex-R + ThreadX |
+| 含 `N58` | `N58` | — |
+| 含 `UIS8850` | `UIS8850` | — |
+| 含 `UIS8852` | `UIS8852` | — |
+
+匹配规则：**精确匹配 > 大小写不敏感包含**，命中唯一目录即采用。仓库名同时命中多个目录、或与任何目录都无交集（如多平台 monorepo、仓库名为通用代号）时，**直接询问用户所属平台，不要默认假设**。
+
+### 2. 确定 dump 分派架构大类（仅死机/崩溃分析）
+
+死机/崩溃按**架构大类**分派到对应 dump 技能，与上述检索平台名相互独立：
+
+| 架构大类 | 代表检索平台 | dump 技能 |
+|---------|-------------|----------|
+| **EC 系**（Cortex-M + FreeRTOS） | `EC626` | `spec-ec-dump-analyzer` |
+| **ASR 系**（Cortex-R + ThreadX） | `ASR1603` | `spec-asr-dump-analyzer` |
+
+架构大类优先由检索平台推断（`EC626`→EC 系、`ASR1603`→ASR 系）。其余平台（`N58`/`UIS8850`/`UIS8852`）的架构归属需结合日志线索判断或询问用户；日志线索（`memp_malloc`/`excep_store`/`tcpip_thread`/`nv_` 倾向 EC 系；`tx_thread`/`[threadx]`/PSRAM/`DataAbort` 倾向 ASR 系）仅作交叉印证，不作为首要识别依据。
 
 ## 执行流程
 
@@ -42,6 +75,28 @@ author: niusulong
 
 ### Step 2：日志分析
 
+**前置：加载模块日志字段字典（来自 code-summary §8）**
+
+日志深入分析前，先为相关模块取一份现成的「字段字典」，把"为查一个错误码含义 / 一个 tag 指代去翻源码"的步骤省掉。
+
+1. **识别相关模块**：从问题描述、AT 命令前缀（`+COAP`/`+MQTT`/`+HTTPCI`…）、日志里的任务名 / 模块 ID 推断涉及哪个模块。
+2. **直读代码总结 §8**（优先直读文件，免走向量检索）。先看本平台已总结哪些模块：
+   ```bash
+   ls ~/.spec-embedded-iot/knowledge/platform/{平台}/code-summary/
+   ```
+   命中即 Read `…/code-summary/{模块名}/代码总结.md` 的 **§8 关键日志检索字段**，按下表取用：
+
+   | §8 小节 | 在本步的用法 |
+   |--------|-------------|
+   | **§8.0 快速检索清单**（若有） | **关键字来源**：按分组取默认可见的高价值串，用法由本技能按场景自决——日志 ≥25KB 喂给 `scripts/log_analyzer.py -k "串1" "串2"`（search/compare/stats），小文件直接 `grep -E "串1\|串2"` |
+   | §8.1 模块标识 / §8.3 状态串 | 锁定本模块日志行、判断流程进行到哪一步 |
+   | §8.2 错误码 | **现查含义，免读源码**——最大提效点 |
+   | §8.4 URC/AT 回复 | 对照 AT 命令时序 |
+   > 每条字段的「默认可见性」要尊重：grep/检索默认不输出的串（如 `P_DEBUG`）会落空，别误判为"模块无日志"。§8.0 只列默认可见项，非默认可见项若需要再去 §8.1–§8.6 查。
+3. **无现成总结时**：可 `python …/embed_search.py "{模块+日志}" --collection code-summary --platform {平台} --top 3` 语义找相关模块；或直接用 `references/analysis-patterns.md` 的通用关键字进入下方盲分析。
+
+> 取到的字段字典贯穿后续 Step 2 日志分析、Step 4 根因定位、Step 5 代码交叉验证——错误码 / 状态值的含义不再依赖临时翻码。
+
 按优先级分析日志：
 
 | 优先级 | 日志类型 | 用途 |
@@ -50,10 +105,10 @@ author: niusulong
 | P1 | Dump日志 | 死机/崩溃问题的堆栈信息 |
 | P2 | 模块AP日志 | 底层详细执行信息 |
 
-**死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按平台分派深度分析：
+**死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按「平台识别 → 2」确定的**架构大类**分派深度分析：
 
-- **EC 平台**（EC616/EC626/EC626E，Cortex-M）→ 引导使用 `spec-ec-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
-- **ASR 平台**（Cortex-R + ThreadX）→ 引导使用 `spec-asr-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
+- **EC 系**（Cortex-M + FreeRTOS，如 `EC626`）→ 引导使用 `spec-ec-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
+- **ASR 系**（Cortex-R + ThreadX，如 `ASR1603`）→ 引导使用 `spec-asr-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
 
 > `spec-dump-analyzer` 已拆分为上述两个平台专属技能，不要引用旧名称。本技能仍可继续做日志层的时序与现象分析，与 dump 分析器互补。
 
@@ -95,7 +150,7 @@ author: niusulong
 - 输出路径：`.spec/bug/{工作项ID}_{问题描述}/Bug分析.md`
 - 使用模板：`references/bug-report-template.md`
 
-**Section 0 结构化摘要（必填）**：工作项 ID、平台、模块、问题分类、症状关键词、根因概述、调用链摘要、检索关键词。此摘要是知识库检索的数据来源，归档时由脚本自动提取。**工作项 ID 必填**，归档后保留在知识库 index.md、归档元数据、向量索引及检索结果中，用于缺陷单号追溯。
+**Section 0 结构化摘要（必填）**：工作项 ID、平台、当前分支、模块、问题分类、症状关键词、根因概述、调用链摘要、检索关键词。此摘要是知识库检索的数据来源，归档时由脚本自动提取。**工作项 ID 必填**，归档后保留在知识库 index.md、归档元数据、向量索引及检索结果中，用于缺陷单号追溯。**当前分支**取自「平台识别」中的 `git rev-parse --abbrev-ref HEAD`（如 `master`、`feature/ipv6-fix`），用于追溯分析时的代码基线，缺失时填 `unknown`。
 
 **问题复现路径（必输出）**：找到根因后必须给出复现路径——前置条件、必要状态、操作步骤、验证方法。概率性问题额外标注复现概率和触发频率。证据不足以推导完整路径时，输出已知条件和推测路径并标注"待验证"。
 
@@ -129,7 +184,7 @@ mv .spec/logs/{相关日志文件} ".spec/bug/{工作项ID}_{问题描述}/logs/
 
 Step 2.5 与手动查询模式共用本方法。
 
-1. **确定平台**：按上方「平台识别」判断（如 EC626、ASR）。
+1. **确定平台**：按上方「平台识别」取当前 git 仓库名对应的平台目录名（如 `EC626`、`ASR1603`、`N58`、`UIS8850`、`UIS8852`）。
 2. **向量语义检索**：
    ```bash
    python ../spec-knowledge-archiver/scripts/embed_search.py "{症状关键词 + 模块名}" --platform {当前平台} --top 5 --json
