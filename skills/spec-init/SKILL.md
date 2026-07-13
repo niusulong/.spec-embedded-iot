@@ -64,7 +64,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
 |------|------|
 | `.spec/` | 根目录 |
 | `.spec/logs/` | 日志文件（用户手动放置） |
-| `.spec/bug/` | Bug 分析报告（由 spec-bug-analyzer、spec-asr-dump-analyzer、spec-ec-dump-analyzer 按需创建） |
+| `.spec/bug/` | Bug 分析报告（由 spec-bug-analyzer、spec-asr1603-dump-analyzer、spec-ec-dump-analyzer 按需创建） |
 
 **中央知识库**（跨项目持久化，独立于代码仓库）：
 ```
@@ -75,7 +75,7 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
 
 **项目功能目录**（由各技能按需创建，不在此预创建）：
 ```
-.spec/bug/{工作项ID}_{问题描述}/     -- 由 spec-bug-analyzer、spec-asr-dump-analyzer、spec-ec-dump-analyzer 按需创建
+.spec/bug/{工作项ID}_{问题描述}/     -- 由 spec-bug-analyzer、spec-asr1603-dump-analyzer、spec-ec-dump-analyzer 按需创建
   Bug分析.md / Dump分析.md
   logs/                   -- 相关日志归档
   dump/                   -- dump 文件归档

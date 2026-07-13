@@ -1,5 +1,5 @@
 ---
-name: spec-asr-dump-analyzer
+name: spec-asr1603-dump-analyzer
 description: >-
   ASR 平台 (ARM Cortex-R + ThreadX) Crash Dump 分析技能，通过 TRACE32 dump 文件定位死机根因。
   支持 AXF 反汇编、DDR 栈分析、静态栈深度分析、代码完整性检查、WDT 追踪、堆扫描。

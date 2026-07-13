@@ -42,7 +42,7 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 | Skill | Trigger | Description |
 |-------|---------|-------------|
 | `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug root-cause analysis with knowledge base retrieval |
-| `spec-asr-dump-analyzer` | spec 分析dump、crash dump | ASR platform crash dump analysis (Cortex-R + ThreadX) |
+| `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump | ASR platform crash dump analysis (Cortex-R + ThreadX) |
 | `spec-ec-dump-analyzer` | EC dump、EC626崩溃 | EC platform crash dump analysis (Cortex-M + FreeRTOS) |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、memory leak | Memory leak localization (call-stack tracking) |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | Single module code implementation analysis |

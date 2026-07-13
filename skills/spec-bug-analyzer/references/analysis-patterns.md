@@ -34,7 +34,7 @@
 | **PSRAM 代码完整性失败** | PSRAM 区执行校验异常 | DDR/PSRAM 数据被踩 / 时序问题 |
 | **ThreadX 阻塞** | `tx_thread` 长时间挂起 | 信号量/队列等待未唤醒、优先级反转 |
 | **看门狗超时** | `WDT`、`WdTimeout` | ISR 或线程死循环、调度被阻塞 |
-| **crash 寄存器组** | PC/LR/SP 地址、`0x7e...` | 转交 `spec-asr-dump-analyzer` 反汇编解码 |
+| **crash 寄存器组** | PC/LR/SP 地址、`0x7e...` | 转交 `spec-asr1603-dump-analyzer` 反汇编解码 |
 
 ## 搜索技巧
 

@@ -8,7 +8,7 @@ description: >-
   只要用户意图是"找出内存在哪里泄漏 / 为什么堆一直减少"，即使没有明说"内存泄漏"也应触发。
   适用周期性/偶发/大块泄漏，覆盖 GCC(__builtin_return_address)、ARMCC(__return_address)、
   MSVC(_ReturnAddress)、IAR 等工具链及 Unisoc/RDA/EC/ASR/Quectel 等平台。
-  边界：若是 crash dump 解析（PC/LR/堆栈寄存器），用 spec-ec-dump-analyzer 或 spec-asr-dump-analyzer；
+  边界：若是 crash dump 解析（PC/LR/堆栈寄存器），用 spec-ec-dump-analyzer 或 spec-asr1603-dump-analyzer；
   若是通用 bug 根因分析（多类日志综合），用 spec-bug-analyzer（它会在怀疑泄漏时转交本技能）。
   本技能聚焦"内存泄漏的埋点追踪与定位"，需要能重新编译烧录带追踪的固件。
 version: 1.0
@@ -29,7 +29,7 @@ author: niusulong
 | `malloc`/`calloc` 返回 NULL，或 ASSERT 在分配处 | 堆已耗尽，需回溯泄漏源 |
 | 长期运行后内存占用单调增长 | 慢泄漏 |
 
-> 本方法要求**能重新编译烧录"带追踪的固件"**。若只有 crash dump、没有改固件加埋点的条件，先转 `spec-ec-dump-analyzer`/`spec-asr-dump-analyzer` 看崩溃点。
+> 本方法要求**能重新编译烧录"带追踪的固件"**。若只有 crash dump、没有改固件加埋点的条件，先转 `spec-ec-dump-analyzer`/`spec-asr1603-dump-analyzer` 看崩溃点。
 
 ## 前置条件：平台能否取调用者地址
 

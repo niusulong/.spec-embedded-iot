@@ -11,7 +11,7 @@ description: >
   "PSRAM 堆耗尽"、"LPM 中断死机" 时使用——只要意图是"定位 UIS8852/N706C 平台的死机根因"，
   即使没明说 "分析dump" 也应触发。即使用户只是粘贴了 dtools.log 或一组崩溃寄存器、
   或提到 "设备死机需要分析 8852 dump"，也应触发。
-  仅适用于 Unisoc UIS8852/N706C (RISC-V) 平台；ASR (Cortex-R) 用 spec-asr-dump-analyzer，
+  仅适用于 Unisoc UIS8852/N706C (RISC-V) 平台；ASR (Cortex-R) 用 spec-asr1603-dump-analyzer，
   EC (Cortex-M) 用 spec-ec-dump-analyzer。
 ---
 

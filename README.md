@@ -18,7 +18,7 @@
 | 技能 | 触发词 | 说明 |
 |------|--------|------|
 | `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug 根因分析：从 AT 命令日志、模块 AP 日志中定位根本原因，支持正常/异常日志对比分析，条件触发知识库历史案例检索 |
-| `spec-asr-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 (ARM Cortex-R + ThreadX) Crash Dump 分析：AXF 反汇编、DDR 栈分析、静态栈深度分析、WDT 追踪、堆扫描 |
+| `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 (ARM Cortex-R + ThreadX) Crash Dump 分析：AXF 反汇编、DDR 栈分析、静态栈深度分析、WDT 追踪、堆扫描 |
 | `spec-ec-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 (ARM Cortex-M + FreeRTOS) Crash Dump 分析：excep_store 解析、Fault Status 解码、FreeRTOS TCB 解析、LWIP memp 泄漏检测、DWARF 源码行号映射、objdump 反汇编上下文 |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结，输出结构化代码总结文档 |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成：目录结构映射、模块清单、技术栈识别、构建系统分析 |

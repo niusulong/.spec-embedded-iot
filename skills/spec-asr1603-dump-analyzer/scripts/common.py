@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Shared utilities for spec-asr-dump-analyzer scripts.
+Shared utilities for spec-asr1603-dump-analyzer scripts.
 
 Consolidates MAP file parsing, ELF section parsing, and binary search address
 lookup — previously duplicated across dump_analyzer.py, axf_disasm.py,
