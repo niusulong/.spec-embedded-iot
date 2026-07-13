@@ -12,3 +12,4 @@ skills/*
 
 # 本地工具配置（Claude Code 会话级设置，不入库）
 .claude/
+.zcode/
