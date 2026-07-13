@@ -1,0 +1,37 @@
+# CTM2M-CTM2MVER-RESP-QUERY_FORMAT.yaml
+# 指令: AT+CTM2MVER?  查询模组接入物联网开放平台软件版本（文档 14.1）
+# 只测响应字节格式，不关心具体版本值。
+name: CTM2MVER-查询响应格式(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；CTM2MVER 为只读查询指令，无需注网、无需 SIM、无需平台。
+  验证目标：AT+CTM2MVER? 的响应严格符合文档 14.1 响应格式表：
+    <CR><LF>+CTM2MVER:<lwm2m>,<ctm2m>,<chip>,<sv><CR><LF><CR><LF>OK<CR><LF>
+  即冒号后无空格，4 个逗号分隔字段，OK 前一空行，OK 后换行。
+  文档依据：14.1 命令格式表「查询」响应格式 + 示例
+    +CTM2MVER:1.0,1.2.0,RDA8908,N21_RDD0CM_BZ_V005  OK
+    （格式表为字节级依据，示例为参数填充参考）。
+tags: [CTM2M, CTM2MVER, RESP, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.1 AT+CTM2MVER?
+  - command: AT+CTM2MVER?
+    extract:
+      lwm2m: '\+CTM2MVER:(\d+\.\d+)'
+      ctm2m: '\+CTM2MVER:\d+\.\d+,(\d+\.\d+\.\d+)'
+      chip: '\+CTM2MVER:\d+\.\d+,\d+\.\d+\.\d+,([A-Za-z0-9]+)'
+      sv: '\+CTM2MVER:\d+\.\d+,\d+\.\d+\.\d+,[A-Za-z0-9]+,([A-Za-z0-9_]+)'
+    assert:
+      - { name: 严格格式, matches: '^\r\n\+CTM2MVER:\d+\.\d+,\d+\.\d+\.\d+,[A-Za-z0-9]+,[A-Za-z0-9_]+\r\n\r\nOK\r\n$' }
+      - { name: lwm2m固定1.0, var: lwm2m, op: eq, value: "1.0" }
+      - { name: ctm2m固定1.2.0, var: ctm2m, op: eq, value: "1.2.0" }
+      - { name: chip非空, var: chip, op: matches, value: '^.+$' }
+      - { name: sv非空, var: sv, op: matches, value: '^.+$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

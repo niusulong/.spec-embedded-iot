@@ -1,0 +1,29 @@
+# CTM2M-CTM2MUPDATE-PARA-UNDER_BINDINGMODE.yaml
+# 指令: AT+CTM2MUPDATE=<Binding Mode>  (文档 14.4)
+# 测试点：Binding Mode 越下限（=-1，文档仅定义 0=U / 1=UQ，下界 0）→ +CTM2M ERROR:3（参数值错误）。
+# 与 OVER_BINDINGMODE（=2→err3）对称覆盖下界。参数校验无需注网/平台。
+name: CTM2MUPDATE-BindingMode越下限err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。无需注网/平台（参数校验在指令受理时即拒绝）。
+  验证目标：AT+CTM2MUPDATE=-1（Binding Mode 文档仅定义 0/1，下界 0），期望返回
+    <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.4 参数 <Binding Mode>「0：U 模式；1：UQ 模式」（下界 0）；
+    <err> 表 err=3「参数值错误」；响应格式 <CR><LF>+CTM2M ERROR:<err><CR><LF>（冒号后无空格）。
+tags: [CTM2M, CTM2MUPDATE, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.4 AT+CTM2MUPDATE=  Binding Mode=-1 越下限
+  - command: AT+CTM2MUPDATE=-1
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

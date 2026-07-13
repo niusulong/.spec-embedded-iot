@@ -1,0 +1,37 @@
+# CTM2M-CTM2MRMODE-PARA-VALID_SET.yaml
+# 指令: AT+CTM2MRMODE=<mode>  (文档 14.8)
+# 测试点：合法 mode 值(0/1/2) 设置 → OK。改设备状态，setup extract 初始值，teardown 恢复。
+name: CTM2MRMODE-合法值设置(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MRMODE 改下行指示方式，setup extract 初始 mode，teardown 恢复。
+    （文档：模块重启后自动还原为默认值 1，但用例内仍主动恢复以防污染后续用例。）
+  验证目标：依次设置 AT+CTM2MRMODE=0、=1、=2，每个均期望返回 <CR><LF>OK<CR><LF>。
+  文档依据：14.8 命令格式表「设置」成功响应 <CR><LF>OK<CR><LF>；
+    <mode> 取值 0/1/2。
+tags: [CTM2M, CTM2MRMODE, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.8 AT+CTM2MRMODE?  提取初始 mode 用于恢复
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+
+steps:
+  # 14.8 AT+CTM2MRMODE=0  无指示
+  - command: AT+CTM2MRMODE=0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.8 AT+CTM2MRMODE=1  指示和消息（默认值）
+  - command: AT+CTM2MRMODE=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.8 AT+CTM2MRMODE=2  仅指示
+  - command: AT+CTM2MRMODE=2
+    assert: { matches: '^\r\nOK\r\n$' }
+
+teardown:
+  # 恢复初始 mode（{{var}} 模板替换）
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

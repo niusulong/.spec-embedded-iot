@@ -1,0 +1,40 @@
+# CTM2M-CTM2MINIT-PARA-UNDER_LIFETIME.yaml
+# 指令: AT+CTM2MINIT=...,<lifetime>,...  (文档 14.2)
+# 测试点：Lifetime 越下限（<300）→ +CTM2M ERROR:3（参数值错误）。
+# +CTM2M ERROR 是业务码非终结符，必须加 timeout（业务码超时陷阱）。
+name: CTM2MINIT-Lifetime越下限报err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MINIT 掉电保存，setup extract 初始值，teardown 恢复。
+    因本用例使用非法 lifetime，设置应被拒绝，实际不应改值；teardown 仍恢复以防万一。
+  验证目标：AT+CTM2MINIT 用 Lifetime=299（<300，文档下界）设置，
+    期望返回 <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码（非 OK/ERROR/+CME/+CMS 终结行），故步骤加 timeout 避免空等。
+  文档依据：14.2 参数 Lifetime「必须 >= 300，否则返回错误（参数值错误）」；
+    错误码表 err=3「参数值错误」；响应格式表 <CR><LF>+CTM2M ERROR:<err><CR><LF>（冒号后无空格）。
+tags: [CTM2M, CTM2MINIT, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MINIT?
+    extract:
+      init_ip: '\+CTM2MINIT:"?((?:\d+\.){3}\d+)"?'
+      init_port: '\+CTM2MINIT:[^,]*,\s*(\d+)'
+      init_life: '\+CTM2MINIT:[^,]*,\s*\d+,(\d+)'
+      init_bm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,(\d)'
+      init_sm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,\d+,(\d)'
+    assert: { contains: "OK" }
+
+steps:
+  # 14.2 AT+CTM2MINIT=  Lifetime=299 越下限（IP/Port 合法上下文用 env，越界值 lifetime=299 硬编码）
+  - command: 'AT+CTM2MINIT="{{ctwing.host}}",{{ctwing.port}},299,0,0'
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+      - { name: 非OK, not_contains: "OK" }
+
+teardown:
+  - command: 'AT+CTM2MINIT="{{init_ip}}",{{init_port}},{{init_life}},{{init_bm}},{{init_sm}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

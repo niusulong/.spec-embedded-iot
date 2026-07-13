@@ -1,0 +1,35 @@
+# CTM2M-CTM2MRMODE-PARA-UNDER_MODE.yaml
+# 指令: AT+CTM2MRMODE=<mode>  (文档 14.8)
+# 测试点：mode 越下限（=-1，文档取值 0/1/2，下界 0）→ +CTM2M ERROR:3（参数值错误）。
+# CTM2MRMODE 改状态，setup extract 初始 mode，teardown 恢复。
+name: CTM2MRMODE-mode越下限err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MRMODE 改下行指示方式，setup extract 初始 mode，teardown 恢复。
+  验证目标：AT+CTM2MRMODE=-1（mode 文档取值 0/1/2，下界 0），期望返回
+    <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.8 <mode> 取值 0/1/2（=(0-2)，下界 0）；
+    <err> 表 err=3「参数值错误」；响应格式 <CR><LF>+CTM2M ERROR:<err><CR><LF>（冒号后无空格）。
+tags: [CTM2M, CTM2MRMODE, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.8 AT+CTM2MRMODE?  提取初始 mode 用于恢复
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+
+steps:
+  # 14.8 AT+CTM2MRMODE=  mode=-1 越下限
+  - command: AT+CTM2MRMODE=-1
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  # 恢复初始 mode（{{var}} 模板替换）
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

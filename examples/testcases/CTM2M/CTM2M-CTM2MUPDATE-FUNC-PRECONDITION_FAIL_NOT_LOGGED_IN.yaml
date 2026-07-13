@@ -1,0 +1,37 @@
+# CTM2M-CTM2MUPDATE-FUNC-PRECONDITION_FAIL_NOT_LOGGED_IN.yaml
+# 指令: AT+CTM2MUPDATE=<Binding Mode>  (文档 14.4)
+# 测试点：未登录平台时执行 UPDATE → +CTM2M ERROR:4（不能发出此指令）。
+# 这是 CTM2MUPDATE 自身的业务前提失败路径，归 FUNC。
+# 场景前提：确保设备处于未登录状态（state=0）。setup 先 DEREg 保证未登录。
+name: CTM2MUPDATE-未登录更新err4(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；且处于未登录平台状态（setup 主动 CTM2MDEREG 保证 state=0）。
+    无需注网/平台（业务前提校验在指令受理时即拒绝）。
+  验证目标：未登录时执行 AT+CTM2MUPDATE=0，期望返回 <CR><LF>+CTM2M ERROR:4<CR><LF>（不能发出此指令）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.4 <err> 表 err=4「不能发出此指令」；<status code> 表 update=14「设备未登录」。
+tags: [CTM2M, CTM2MUPDATE, FUNC, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 确保未登录（若已登录则登出，失败也不阻塞）
+  - command: AT+CTM2MDEREG
+    timeout: 2
+    on_failure: skip
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    assert: { contains: "OK" }
+
+steps:
+  # 14.4 AT+CTM2MUPDATE=0  未登录时执行
+  - command: AT+CTM2MUPDATE=0
+    timeout: 1.2
+    when: 'state == "0"'
+    assert:
+      - { name: err4不能发出, matches: '^\r\n\+CTM2M ERROR:4\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

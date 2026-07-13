@@ -1,0 +1,83 @@
+# CTM2M-CTM2MUPDATE-FUNC-NORMAL_UPDATE.yaml
+# 指令: AT+CTM2MUPDATE=<Binding Mode>  (文档 14.4)
+# 测试点：已登录(state=3)时更新 Binding Mode 成功路径——异步指令，用 wait_urc 等 update URC。
+# 需 注网 + PDP + 已登录(state=3) + 平台可用。
+#
+# 完整响应序列（文档 14.4 执行响应格式表）：
+#   <CR><LF>+CTM2MUPDATE:<MsgID><CR><LF><CR><LF>OK<CR><LF><CR><LF>+CTM2M:update,<status code>,<MsgID><CR><LF>
+#   +CTM2MUPDATE:<MsgID> = 指令受理并分配 MsgID；
+#   OK = 指令受理确认；
+#   +CTM2M:update,0,<MsgID> = 更新成功 URC（status code update=0 成功）。
+#
+# wait_urc 用法：声明 wait_urc 指向 update URC，框架遇 OK 不终结、读到该 URC 立即返回，
+#   整段 +CTM2MUPDATE+OK+update 进 text，可断言 MsgID 一致性（\1 反向引用）。
+name: CTM2MUPDATE-正常更新成功(严格字节级, 需平台)
+description: |
+  场景前提：需注网、需 AT+XIIC=1 建立 PDP 拨号（数据业务前提）、需 CTM2MINIT 已初始化、
+    需已登录平台(state=3)、需中国电信 CTWing 平台可达。
+    本用例为平台依赖型，无平台/未登录时 steps 会失败，属预期。
+  验证目标（异步成功以 URC 为准，用 wait_urc 等 update URC）：
+    1) AT+CTM2MUPDATE=0 受理返回 +CTM2MUPDATE:<MsgID> 与 OK；
+    2) 随后上报 +CTM2M:update,0,<MsgID>（更新成功码 update=0）；
+    3) 受理行 MsgID 与 URC 中 MsgID 一致（\1 反向引用校验）。
+    URC 字节格式：冒号后无空格，operation/status/MsgID 间逗号无空格（据 14.10 格式表）。
+  文档依据：14.4 执行响应格式表 + 示例（+CTM2MUPDATE:6650 / OK / +CTM2M:update,0,6650）；
+    <status code> 表 update=0「已成功更新」。
+tags: [CTM2M, CTM2MUPDATE, FUNC, needs-platform, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 等注网
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  # 建立 PDP 拨号（数据业务前提）
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  # 登录平台并等 state==3（异步，登录用 wait_urc 等 obsrv）
+  - command: AT+CTM2MREG
+    wait_urc: '\+CTM2M:obsrv,\d'
+    timeout: 10
+    assert: { contains: "+CTM2M:obsrv,0" }
+    on_failure: continue
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "3"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+
+steps:
+  # 14.4 AT+CTM2MUPDATE=0  异步——wait_urc 等 update URC，整段受理+OK+update 进 text
+  - command: AT+CTM2MUPDATE=0
+    wait_urc: '\+CTM2M:update,\d+,\d+'
+    timeout: 10
+    assert:
+      - { name: 受理行格式, matches: '\r\n\+CTM2MUPDATE:\d+\r\n' }
+      - { name: 受理OK, matches: '\r\nOK\r\n' }
+      - { name: update成功URC, matches: '\r\n\+CTM2M:update,0,\d+\r\n' }
+      - { name: 非失败码1, not_contains: "+CTM2M:update,1" }
+      - { name: 非失败码3, not_contains: "+CTM2M:update,3" }
+      # 受理行 MsgID 与 URC 中 MsgID 一致：\1 反向引用强制两处为同一数字
+      - { name: MsgID受理与URC一致, matches: '\+CTM2MUPDATE:(\d+)\r\n\r\nOK\r\n\r\n\+CTM2M:update,0,\1\r\n' }
+
+teardown:
+  # 登出恢复未登录态。teardown 不支持 wait_urc/poll，DEREG 按普通指令发，失败仅警告。
+  - command: AT+CTM2MDEREG
+    timeout: 5
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

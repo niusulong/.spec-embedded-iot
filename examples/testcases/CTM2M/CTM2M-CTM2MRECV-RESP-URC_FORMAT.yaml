@@ -1,0 +1,78 @@
+# CTM2M-CTM2MRECV-RESP-URC_FORMAT.yaml
+# 指令: +CTM2MRECV:<Data>  (文档 14.7，模组主动上报 URC，非终端指令)
+# 测试点：收到下行数据时，模组上报 +CTM2MRECV:<Data> 的字节格式（冒号后无空格，Data 为 hex）。
+# 平台依赖：需注网 + PDP + 登录(state>=2) + 平台下发下行数据 + RMODE=1 或 2（显示指示）。
+#
+# URC 捕获策略（更新后的 skill 用 wait_urc）：
+#   +CTM2MRECV 是纯被动上报（平台下行数据触发），无对应终端指令。用一条无害查询 AT 作载体，
+#   声明 wait_urc 指向 +CTM2MRECV:<hex>，框架在该步等待期间收到此 URC 即返回，整段进 text 可断言。
+#   平台需在该步 timeout 窗口内下发数据；无数据则超时失败，on_failure:continue 使其不算用例失败。
+name: CTM2MRECV-下行上报URC格式(严格字节级, 需平台)
+description: |
+  场景前提：需注网 + PDP + 登录平台(state>=2) + 中国电信 CTWing 平台下发下行数据 + RMODE=1 或 2
+    （显示指示，见文档 14.8）。本用例为平台依赖型，无平台下发数据时 steps 会失败，属预期。
+  验证目标：收到下行数据时，模组上报 URC 严格符合文档 14.7「命令格式表」：
+    +CTM2MRECV:<Data><CR><LF>（冒号后无空格，Data 为十六进制字符；文档示例 +CTM2MRECV:31323334353637383930）。
+  文档依据：14.7 命令格式表「主动上报」+CTM2MRECV:<Data><CR><LF>；
+    参数 <Data> 接收到的下行数据；示例 +CTM2MRECV:31323334353637383930。
+tags: [CTM2M, CTM2MRECV, RESP, needs-platform, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+  # 14.8 设置 RMODE=1（收到下行立即显示为 +CTM2MRECV:<data>）
+  - command: AT+CTM2MRMODE=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  # 登录平台并等 state>=2（异步登录用 wait_urc 等 obsrv）
+  - command: AT+CTM2MREG
+    wait_urc: '\+CTM2M:obsrv,\d'
+    timeout: 10
+    assert: { contains: "+CTM2M:obsrv,0" }
+    on_failure: continue
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "2" or state == "3"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+
+steps:
+  # 14.7 +CTM2MRECV URC 格式校验
+  # 用 AT 作载体，wait_urc 等 +CTM2MRECV:<hex>。平台需在 30s 内下发数据；
+  # 无数据则超时，on_failure:continue（依赖外部触发，失败属预期）。
+  - command: AT
+    wait_urc: '\+CTM2MRECV:[0-9A-Fa-f]+'
+    timeout: 30
+    on_failure: continue
+    assert:
+      - { name: 含CTM2MRECV URC, matches: '\+CTM2MRECV:[0-9A-Fa-f]+' }
+      - { name: URC格式_冒号无空格, matches: '\r\n\+CTM2MRECV:[0-9A-Fa-f]+\r\n' }
+
+teardown:
+  # 登出恢复未登录态。teardown 不支持 wait_urc/poll，DEREG 按普通指令发，失败仅警告。
+  - command: AT+CTM2MDEREG
+    timeout: 5
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

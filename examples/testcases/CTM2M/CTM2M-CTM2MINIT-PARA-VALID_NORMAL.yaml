@@ -1,0 +1,39 @@
+# CTM2M-CTM2MINIT-PARA-VALID_NORMAL.yaml
+# 指令: AT+CTM2MINIT=<Sever_IP>,<Port>,<lifetime>,<Binding Mode>,<Securitymode>  (文档 14.2)
+# 测试点：合法参数（最小 lifetime=300、合法 IP/端口/Binding/Security）被接受 → OK。
+# CTM2MINIT 掉电保存，故 setup extract 初始值、teardown 用 {{var}} 恢复。
+name: CTM2MINIT-合法参数最小lifetime(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MINIT 掉电保存，setup 先 extract 当前值，teardown 恢复。
+    本用例不触发注网/登录，仅验证参数设置本身。
+  验证目标：用合法参数（IP/Port 用 env {{ctwing.host}}/{{ctwing.port}}、Lifetime=300 即文档下界、
+    Binding=0、Security=0）设置 AT+CTM2MINIT，期望返回 <CR><LF>OK<CR><LF>。
+    服务器地址/端口经 env 引用（换环境只改 env.yaml），lifetime/Binding/Security 为数值枚举保留字面值。
+  文档依据：14.2 命令格式表「执行」成功响应 <CR><LF>OK<CR><LF>；
+    参数说明：Lifetime 必须 >=300，Binding Mode 0/1，Securitymode 0/1/2。
+tags: [CTM2M, CTM2MINIT, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.2 AT+CTM2MINIT? 提取初始值用于恢复
+  - command: AT+CTM2MINIT?
+    extract:
+      init_ip: '\+CTM2MINIT:"?((?:\d+\.){3}\d+)"?'
+      init_port: '\+CTM2MINIT:[^,]*,\s*(\d+)'
+      init_life: '\+CTM2MINIT:[^,]*,\s*\d+,(\d+)'
+      init_bm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,(\d)'
+      init_sm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,\d+,(\d)'
+    assert: { contains: "OK" }
+
+steps:
+  # 14.2 AT+CTM2MINIT=  设置合法参数（最小 lifetime=300；IP/Port 用 env 引用）
+  - command: 'AT+CTM2MINIT="{{ctwing.host}}",{{ctwing.port}},300,0,0'
+    assert: { matches: '^\r\nOK\r\n$' }
+
+teardown:
+  # 恢复初始值（{{var}} 模板替换）。init_ip 已带不带引号取出的裸 IP，需手动加引号。
+  - command: 'AT+CTM2MINIT="{{init_ip}}",{{init_port}},{{init_life}},{{init_bm}},{{init_sm}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

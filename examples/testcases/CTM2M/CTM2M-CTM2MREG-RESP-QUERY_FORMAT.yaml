@@ -1,0 +1,29 @@
+# CTM2M-CTM2MREG-RESP-QUERY_FORMAT.yaml
+# 指令: AT+CTM2MREG?  查询当前登录状态（文档 14.3）
+# 只测响应字节格式 + state 取值合法，不关心具体处于哪个状态。
+name: CTM2MREG-查询响应格式(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；CTM2MREG? 为只读查询，无需注网、无需平台。
+  验证目标：AT+CTM2MREG? 响应严格符合文档 14.3「响应格式表」：
+    <CR><LF>+CTM2M:<state><CR><LF><CR><LF>OK<CR><LF>
+    冒号后无空格，state 为 0-4 单个数字，OK 前一空行。
+  文档依据：14.3 命令格式表「查询」响应 + <state> 取值表 0/1/2/3/4。
+tags: [CTM2M, CTM2MREG, RESP, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.3 AT+CTM2MREG?
+  - command: AT+CTM2MREG?
+    extract:
+      state: '\+CTM2M:(\d)'
+    assert:
+      - { name: 严格格式, matches: '^\r\n\+CTM2M:\d\r\n\r\nOK\r\n$' }
+      - { name: state在0-4, var: state, op: in, values: ["0", "1", "2", "3", "4"] }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

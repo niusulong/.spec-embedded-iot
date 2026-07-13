@@ -1,0 +1,33 @@
+# CTM2M-CTM2MRMODE-PARA-WRONG_FORMAT_NOT_NUMBER.yaml
+# 指令: AT+CTM2MRMODE=<mode>  (文档 14.8)
+# 测试点：mode 类型错误（非数字，如 =a）→ +CTM2M ERROR:3（参数值错误）。
+# mode 文档定义为整数（0/1/2），传非数字属参数格式错误。
+name: CTM2MRMODE-mode非数字err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MRMODE 改状态，setup extract 初始 mode，teardown 恢复。
+  验证目标：AT+CTM2MRMODE=a（mode 应为整数，传字母非数字），期望返回
+    <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.8 <mode> 为整数取值 0/1/2；
+    <err> 表 err=3「参数值错误」；响应格式 <CR><LF>+CTM2M ERROR:<err><CR><LF>（冒号后无空格）。
+tags: [CTM2M, CTM2MRMODE, PARA, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+
+steps:
+  # 14.8 AT+CTM2MRMODE=  mode=a 非数字
+  - command: AT+CTM2MRMODE=a
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

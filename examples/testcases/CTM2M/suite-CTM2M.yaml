@@ -1,0 +1,100 @@
+# suite-CTM2M.yaml
+# CTM2M（电信 CTWing AEP 平台接入）功能块测试套件索引
+# 来源：CTWING_AEP_AT指令集.md（第 14 章）
+#
+# 运行方式：
+#   1) 套件顺序运行（含 suite_setup/suite_teardown）：
+#        uv run python -m atprobe run suite-CTM2M.yaml --config <配置>
+#   2) 批量运行本目录所有用例（自动跳过 suite- 前缀文件）：
+#        uv run python -m atprobe run examples/testcases/CTM2M --config <配置>
+#
+# 标签筛选：
+#   只跑离线可断言用例（无平台依赖）：--tag RESP --tag PARA  并 --exclude-tag needs-platform
+#   只跑 RESP 格式校验：--tag RESP
+#   跳过平台依赖型：--exclude-tag needs-platform
+#
+# 优先级标签：p0 = 必测；p1 = 回归/条件触发
+#
+# 平台依赖型用例（tag: needs-platform）需真实注网 + AT+XIIC=1 PDP + CTWing 平台可达；
+# 无平台环境时这些用例的 steps 会失败，属预期（用 --exclude-tag needs-platform 跳过）。
+#
+# env 参数：CTM2MINIT 用例的服务器地址/端口用 {{ctwing.host}}/{{ctwing.port}} 引用
+# examples/env.yaml（LWM2M/CoAP 场景：host=平台地址、port=5683）。换环境只改 env.yaml。
+# lifetime/Binding/Security 为数值枚举，保留字面值；故意非法的边界值（越界 lifetime 等）也保留硬编码。
+name: CTM2M-CTWing平台接入测试套件
+description: |
+  电信 CTWing AEP 平台接入（CTM2M 指令族）端到端测试用例索引。
+  覆盖文档第 14 章全部 10 个指令/通知：
+    14.1 CTM2MVER（查询版本）、14.2 CTM2MINIT（初始化）、14.3 CTM2MREG（登录）、
+    14.4 CTM2MUPDATE（更新绑定）、14.5 CTM2MDEREG（登出）、14.6 CTM2MSEND（发送）、
+    14.7 +CTM2MRECV（下行数据 URC）、14.8 CTM2MRMODE（指示方式）、14.9 CTM2MREAD（读缓存）、
+    14.10 +CTM2M（结果通知 URC）。
+  分三类：RESP（响应格式）、FUNC（功能/业务路径）、PARA（参数与边界）。
+tags: [CTM2M, regression]
+
+suite_setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+cases:
+  # --- 14.1 CTM2MVER 查询版本（只读，离线）---
+  - CTM2M-CTM2MVER-RESP-QUERY_FORMAT.yaml
+
+  # --- 14.2 CTM2MINIT 初始化（掉电保存，改状态）---
+  - CTM2M-CTM2MINIT-RESP-QUERY_FORMAT.yaml
+  - CTM2M-CTM2MINIT-PARA-VALID_NORMAL.yaml
+  - CTM2M-CTM2MINIT-PARA-UNDER_LIFETIME.yaml
+  - CTM2M-CTM2MINIT-PARA-OVER_BINDINGMODE.yaml
+  - CTM2M-CTM2MINIT-PARA-OVER_SECURITYMODE.yaml
+  - CTM2M-CTM2MINIT-PARA-WRONG_FORMAT_WRONG_ARGCOUNT.yaml
+
+  # --- 14.3 CTM2MREG 登录平台 ---
+  - CTM2M-CTM2MREG-RESP-QUERY_FORMAT.yaml
+  - CTM2M-CTM2MREG-PARA-UNDER_LIFETIME.yaml
+  - CTM2M-CTM2MREG-FUNC-PRECONDITION_FAIL_NOT_INIT.yaml
+  - CTM2M-CTM2MREG-FUNC-NORMAL_LOGIN.yaml          # needs-platform
+
+  # --- 14.4 CTM2MUPDATE 更新绑定模式 ---
+  - CTM2M-CTM2MUPDATE-PARA-OVER_BINDINGMODE.yaml
+  - CTM2M-CTM2MUPDATE-PARA-UNDER_BINDINGMODE.yaml
+  - CTM2M-CTM2MUPDATE-FUNC-PRECONDITION_FAIL_NOT_LOGGED_IN.yaml
+  - CTM2M-CTM2MUPDATE-FUNC-NORMAL_UPDATE.yaml       # needs-platform
+
+  # --- 14.5 CTM2MDEREG 登出 ---
+  - CTM2M-CTM2MDEREG-FUNC-PRECONDITION_FAIL_NOT_LOGGED_IN.yaml
+  - CTM2M-CTM2MDEREG-FUNC-NORMAL_DEREG.yaml         # needs-platform
+
+  # --- 14.6 CTM2MSEND 发送业务数据 ---
+  - CTM2M-CTM2MSEND-PARA-LENGTH_OVER.yaml
+  - CTM2M-CTM2MSEND-PARA-ODD_LENGTH.yaml
+  - CTM2M-CTM2MSEND-PARA-NOT_HEX.yaml
+  - CTM2M-CTM2MSEND-FUNC-PRECONDITION_FAIL_NOT_LOGGED_IN.yaml
+  - CTM2M-CTM2MSEND-FUNC-PRECONDITION_FAIL_OBSERVE_PENDING.yaml  # needs-platform
+  - CTM2M-CTM2MSEND-FUNC-NORMAL_SEND.yaml           # needs-platform
+
+  # --- 14.7 +CTM2MRECV 下行数据 URC ---
+  - CTM2M-CTM2MRECV-RESP-URC_FORMAT.yaml            # needs-platform
+
+  # --- 14.8 CTM2MRMODE 指示方式设置（改状态）---
+  - CTM2M-CTM2MRMODE-RESP-QUERY_FORMAT.yaml
+  - CTM2M-CTM2MRMODE-RESP-TEST_RANGE.yaml
+  - CTM2M-CTM2MRMODE-PARA-VALID_SET.yaml
+  - CTM2M-CTM2MRMODE-PARA-OVER_MODE.yaml
+  - CTM2M-CTM2MRMODE-PARA-UNDER_MODE.yaml
+  - CTM2M-CTM2MRMODE-PARA-WRONG_FORMAT_NOT_NUMBER.yaml
+
+  # --- 14.9 CTM2MREAD 读缓存 ---
+  - CTM2M-CTM2MREAD-FUNC-NO_CACHE.yaml
+  - CTM2M-CTM2MREAD-FUNC-WITH_CACHE.yaml            # needs-platform
+
+  # --- 14.10 +CTM2M 结果通知 URC ---
+  # 注：+CTM2M:reg/obsrv/update/dereg/send 是「指令响应尾随 URC」（异步成功标志），
+  #     已在各指令的 FUNC-NORMAL 用例中作为完整响应序列断言（见上方 14.3/14.4/14.5/14.6）。
+  #     纯被动接收 URC 见 14.7 +CTM2MRECV（独立 RESP 用例，上方已列）。
+
+  # --- 功能块级：指令名拼错 ---
+  - CTM2M-CMDPARSE-FUNC-INVALID_NAME.yaml
+
+suite_teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

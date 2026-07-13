@@ -1,0 +1,31 @@
+# CTM2M-CTM2MREG-FUNC-PRECONDITION_FAIL_NOT_INIT.yaml
+# 指令: AT+CTM2MREG  (文档 14.3)
+# 测试点：连接参数未初始化时登录 → +CTM2M ERROR:8（物联网开放平台连接参数未初始化）。
+# 这是 CTM2MREG 自身的业务失败路径，归 FUNC。
+# 注：要让此用例可靠触发 err8，需 CTM2MINIT 未设置。但 CTM2MINIT 掉电保存——
+# 若设备历史已设置过 INIT，本用例的 err8 可能不出现。属场景依赖，description 已注明。
+name: CTM2MREG-未初始化登录err8(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；且 CTM2MINIT 未设置过连接参数（新出厂/未初始化状态）。
+    若设备已执行过 CTM2MINIT（掉电保存），err8 可能不触发——此为场景前提依赖，非用例缺陷。
+  验证目标：CTM2MINIT 未初始化时执行 AT+CTM2MREG，期望返回 <CR><LF>+CTM2M ERROR:8<CR><LF>
+    （物联网开放平台连接参数未初始化）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.3 <err> 错误码表 err=8「物联网开放平台连接参数未初始化」。
+tags: [CTM2M, CTM2MREG, FUNC, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.3 AT+CTM2MREG  未初始化时登录
+  - command: AT+CTM2MREG
+    timeout: 1.2
+    assert:
+      - { name: err8未初始化, matches: '^\r\n\+CTM2M ERROR:8\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

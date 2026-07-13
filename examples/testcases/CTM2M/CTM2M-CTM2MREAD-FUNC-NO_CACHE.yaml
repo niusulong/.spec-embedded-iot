@@ -1,0 +1,39 @@
+# CTM2M-CTM2MREAD-FUNC-NO_CACHE.yaml
+# 指令: AT+CTM2MREAD  (文档 14.9)
+# 测试点：无缓存下行数据时，返回 <CR><LF>OK<CR><LF>（直接 OK，无数据行）。
+# 为稳定触发"无缓存"，setup 先把 RMODE 设为 1（RMODE=1 时 READ 直接返回 OK），
+# 再恢复 RMODE 初始值；并用循环 READ 清空可能残留的缓存。
+# 注：文档未给"清空缓存"指令，只能靠反复 READ 直到无数据。本用例用设置 RMODE=1 的方式：
+#   RMODE=1 时 CTM2MREAD 直接返回 OK（文档 14.9 明示），是最稳定的"空/直接返回"验证路径。
+name: CTM2MREAD-无缓存返回OK(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MRMODE 改状态，setup extract 初始 mode，teardown 恢复。
+  验证目标：设置 AT+CTM2MRMODE=1（收到下行立即显示，不缓存）后，AT+CTM2MREAD 直接返回
+    <CR><LF>OK<CR><LF>（文档 14.9：若设置了 RMODE=1，该指令直接返回 OK）。
+    响应严格为 OK，无数据行、无空行前缀。
+  文档依据：14.9 说明「若设置了 AT+CTM2MRMODE=1，该指令直接返回 OK」；
+    响应格式 <CR><LF>OK<CR><LF>。
+tags: [CTM2M, CTM2MREAD, FUNC, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.8 AT+CTM2MRMODE?  提取初始 mode 用于恢复
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+  # 14.8 设置 RMODE=1（使 READ 直接返回 OK）
+  - command: AT+CTM2MRMODE=1
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.9 AT+CTM2MREAD  RMODE=1 时直接返回 OK
+  - command: AT+CTM2MREAD
+    assert: { matches: '^\r\nOK\r\n$' }
+
+teardown:
+  # 恢复初始 RMODE
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

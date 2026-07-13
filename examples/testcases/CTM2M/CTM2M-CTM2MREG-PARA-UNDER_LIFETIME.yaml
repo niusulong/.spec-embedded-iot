@@ -1,0 +1,27 @@
+# CTM2M-CTM2MREG-PARA-UNDER_LIFETIME.yaml
+# 指令: AT+CTM2MREG=<Lifetime>  (文档 14.3)
+# 测试点：Lifetime 越下限（<300）→ +CTM2M ERROR:3（参数值错误）。
+# 这是参数校验（PARA），与 FUNC 的业务前提失败不同：此处是参数本身非法。
+name: CTM2MREG-Lifetime越下限err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。无需注网/平台（参数校验在指令受理时即拒绝）。
+  验证目标：AT+CTM2MREG=299（Lifetime<300 文档下界），期望返回 <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.3 参数 Lifetime「必须 >= 300，否则返回错误（参数值错误）」；<err> 表 err=3。
+tags: [CTM2M, CTM2MREG, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.3 AT+CTM2MREG=  Lifetime=299 越下限
+  - command: AT+CTM2MREG=299
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

@@ -1,0 +1,30 @@
+# CTM2M-CTM2MRMODE-RESP-QUERY_FORMAT.yaml
+# 指令: AT+CTM2MRMODE?  (文档 14.8)
+# 测试点：查询响应字节格式（冒号后无空格，据格式表；示例带空格属演示省略，不作字节依据）。
+name: CTM2MRMODE-查询响应格式(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；CTM2MRMODE? 为只读查询，无需注网/平台。
+  验证目标：AT+CTM2MRMODE? 响应严格符合文档 14.8「响应格式表」：
+    <CR><LF>+CTM2MRMODE:<mode><CR><LF><CR><LF>OK<CR><LF>
+    冒号后无空格（依据格式表；示例 +CTM2MRMODE: 2 带空格属演示省略，不作字节依据）。
+    若实测冒号后有空格，说明与格式表不符——属应捕获的偏差。
+  文档依据：14.8 命令格式表「查询」响应格式 + <mode> 取值 0/1/2。
+tags: [CTM2M, CTM2MRMODE, RESP, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.8 AT+CTM2MRMODE?
+  - command: AT+CTM2MRMODE?
+    extract:
+      mode: '\+CTM2MRMODE:(\d)'
+    assert:
+      - { name: 严格格式, matches: '^\r\n\+CTM2MRMODE:\d\r\n\r\nOK\r\n$' }
+      - { name: mode在0-2, var: mode, op: in, values: ["0", "1", "2"] }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

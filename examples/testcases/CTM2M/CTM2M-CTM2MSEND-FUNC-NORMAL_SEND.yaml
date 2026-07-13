@@ -1,0 +1,82 @@
+# CTM2M-CTM2MSEND-FUNC-NORMAL_SEND.yaml
+# 指令: AT+CTM2MSEND=<Data>[,<mode>]  (文档 14.6)
+# 测试点：已登录已 Observe(state=3) 时发送业务数据成功路径——异步指令，用 wait_urc 等 send URC。
+# 需 注网 + PDP + 已登录已 Observe(state=3) + 平台可用。
+#
+# 完整响应序列（文档 14.6 执行响应格式表）：
+#   <CR><LF>+CTM2MSEND:<MsgID><CR><LF><CR><LF>OK<CR><LF><CR><LF>+CTM2M:send,<status code>,<MsgID><CR><LF>
+#   +CTM2MSEND:<MsgID> = 指令受理并分配 MsgID；
+#   OK = 指令受理确认；
+#   +CTM2M:send,0,<MsgID> = 发送成功 URC（status code send=0 成功）。
+#
+# wait_urc 用法（SKILL.md 异步指令陷阱示例）：声明 wait_urc 指向 send URC，整段受理+OK+send 进 text，
+#   用 \1 反向引用校验受理行 MsgID 与 URC MsgID 一致。
+name: CTM2MSEND-正常发送成功(严格字节级, 需平台)
+description: |
+  场景前提：需注网、需 AT+XIIC=1 建立 PDP 拨号、需已登录平台且 state==3（已登录已 Observe）、
+    需中国电信 CTWing 平台可达。本用例为平台依赖型，无平台/未 Observe 时 steps 会失败，属预期。
+  验证目标（异步成功以 URC 为准，用 wait_urc 等 send URC）：
+    1) AT+CTM2MSEND=<hex> 受理返回 +CTM2MSEND:<MsgID> 与 OK；
+    2) 随后上报 +CTM2M:send,0,<MsgID>（发送成功码 send=0）；
+    3) 受理行 MsgID 与 URC 中 MsgID 一致（\1 反向引用校验）。
+    URC 字节格式：冒号后无空格，operation/status/MsgID 间逗号无空格（据 14.10 格式表）。
+  文档依据：14.6 执行响应格式表 + 示例
+    AT+CTM2MSEND=02000400020805 / +CTM2MSEND:29656 / OK / +CTM2M:send,0,29656；
+    <status code> 表 send=0「成功发送数据」。
+tags: [CTM2M, CTM2MSEND, FUNC, needs-platform, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  # 建立 PDP 拨号（数据业务前提）
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  # 登录平台并等 state==3（已 Observe，方可发送；异步登录用 wait_urc 等 obsrv）
+  - command: AT+CTM2MREG
+    wait_urc: '\+CTM2M:obsrv,\d'
+    timeout: 10
+    assert: { contains: "+CTM2M:obsrv,0" }
+    on_failure: continue
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "3"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+
+steps:
+  # 14.6 AT+CTM2MSEND=  异步——wait_urc 等 send URC，整段受理+OK+send 进 text
+  - command: AT+CTM2MSEND=02000400020805
+    wait_urc: '\+CTM2M:send,\d+,\d+'
+    timeout: 10
+    assert:
+      - { name: 受理行格式, matches: '\r\n\+CTM2MSEND:\d+\r\n' }
+      - { name: 受理OK, matches: '\r\nOK\r\n' }
+      - { name: send成功URC, matches: '\r\n\+CTM2M:send,0,\d+\r\n' }
+      - { name: 非失败码6, not_contains: "+CTM2M:send,6" }
+      - { name: 非失败码7, not_contains: "+CTM2M:send,7" }
+      # 受理行 MsgID 与 URC 中 MsgID 一致：\1 反向引用强制两处为同一数字
+      - { name: MsgID受理与URC一致, matches: '\+CTM2MSEND:(\d+)\r\n\r\nOK\r\n\r\n\+CTM2M:send,0,\1\r\n' }
+
+teardown:
+  # 登出恢复未登录态。teardown 不支持 wait_urc/poll，DEREG 按普通指令发，失败仅警告。
+  - command: AT+CTM2MDEREG
+    timeout: 5
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

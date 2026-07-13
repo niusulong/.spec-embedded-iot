@@ -1,0 +1,26 @@
+# CTM2M-CTM2MRMODE-RESP-TEST_RANGE.yaml
+# 指令: AT+CTM2MRMODE=?  (文档 14.8)
+# 测试点：测试命令响应格式 + 取值范围 (0-2)。
+name: CTM2MRMODE-测试命令响应格式(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；AT+CTM2MRMODE=? 为只读测试命令，无需注网/平台。
+  验证目标：AT+CTM2MRMODE=? 响应严格符合文档 14.8「响应格式表」：
+    <CR><LF>+CTM2MRMODE:(0-2)<CR><LF><CR><LF>OK<CR><LF>
+    冒号后无空格，取值范围为 (0-2) 字面。
+  文档依据：14.8 命令格式表「测试」响应格式 + 示例 +CTM2MRMODE:(0-2) / OK。
+tags: [CTM2M, CTM2MRMODE, RESP, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.8 AT+CTM2MRMODE=?
+  - command: AT+CTM2MRMODE=?
+    assert:
+      - { name: 严格格式, matches: '^\r\n\+CTM2MRMODE:\(0-2\)\r\n\r\nOK\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

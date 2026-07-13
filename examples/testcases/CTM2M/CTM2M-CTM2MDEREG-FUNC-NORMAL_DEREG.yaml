@@ -1,0 +1,78 @@
+# CTM2M-CTM2MDEREG-FUNC-NORMAL_DEREG.yaml
+# 指令: AT+CTM2MDEREG  (文档 14.5)
+# 测试点：已登录时登出成功路径——异步指令，用 wait_urc 等 dereg URC。
+# 需 注网 + PDP + 已登录 + 平台可用。
+#
+# 完整响应序列（文档 14.5 执行响应格式表）：
+#   <CR><LF>OK<CR><LF><CR><LF>+CTM2M:dereg,<status code>,<MsgID><CR><LF>
+#   OK = 指令受理；+CTM2M:dereg,0,<MsgID> = 注销成功 URC（status code dereg=0 成功）。
+# 最终 AT+CTM2MREG? 应为 state=0（未登录）。
+name: CTM2MDEREG-正常登出成功(严格字节级, 需平台)
+description: |
+  场景前提：需注网、需 AT+XIIC=1 建立 PDP 拨号、需已登录平台、需中国电信 CTWing 平台可达。
+    本用例为平台依赖型，无平台/未登录时 steps 会失败，属预期。
+  验证目标（异步成功以 URC 为准，用 wait_urc 等 dereg URC）：
+    1) AT+CTM2MDEREG 受理返回 OK；
+    2) 随后上报 +CTM2M:dereg,0,<MsgID>（注销成功码 dereg=0）；
+    3) 最终 AT+CTM2MREG? 返回 state=0（未登录）。
+    URC 字节格式：冒号后无空格，operation/status/MsgID 间逗号无空格（据 14.10 格式表）。
+  文档依据：14.5 执行响应格式表 <CR><LF>OK<CR><LF><CR><LF>+CTM2M:dereg,<status code>,<MsgID><CR><LF>
+    + 14.10 主动上报格式表 + 示例（AT+CTM2MDEREG / OK / +CTM2M:dereg,0）；
+    <status code> 表 dereg=0「注销平台成功」；<state> 表 state=0「未登录」。
+tags: [CTM2M, CTM2MDEREG, FUNC, needs-platform, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  # 建立 PDP 拨号（数据业务前提）
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  # 登录平台并等 state==2 或 3（已登录方可登出；异步登录用 wait_urc 等 obsrv）
+  - command: AT+CTM2MREG
+    wait_urc: '\+CTM2M:obsrv,\d'
+    timeout: 10
+    assert: { contains: "+CTM2M:obsrv,0" }
+    on_failure: continue
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "3" or state == "2"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+
+steps:
+  # 14.5 AT+CTM2MDEREG  异步——wait_urc 等 dereg URC，整段 OK+dereg 进 text
+  - command: AT+CTM2MDEREG
+    wait_urc: '\+CTM2M:dereg,\d+,\d+'
+    timeout: 10
+    assert:
+      - { name: 受理OK, matches: '\r\nOK\r\n' }
+      - { name: dereg成功URC, matches: '\r\n\+CTM2M:dereg,0,\d+\r\n' }
+      - { name: 非失败码1, not_contains: "+CTM2M:dereg,1" }
+
+  # 复核最终 state==0（登出后的持久状态）
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    assert:
+      - { name: 严格格式, matches: '^\r\n\+CTM2M:\d\r\n\r\nOK\r\n$' }
+      - { name: state为0, var: state, op: eq, value: "0" }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

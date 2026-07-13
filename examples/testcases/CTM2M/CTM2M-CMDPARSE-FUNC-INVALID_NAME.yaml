@@ -1,0 +1,38 @@
+# CTM2M-CMDPARSE-FUNC-INVALID_NAME.yaml
+# 功能块级通用用例：测模组指令识别机制——CTM2M 指令名拼错时的回码。
+# 用 AT+CTM2MREGG（多了个 G，不存在的指令名）触发。
+#
+# 待澄清项（文档未明）：
+#   文档 14.x 只定义了 +CTM2M ERROR:<err> 业务码（CTM2M 业务层错误），未说明「指令名本身不存在」
+#   时返回什么。指令名拼错属于 AT 引擎层（指令解析阶段，未进入 CTM2M 业务处理），通常由 AT 引擎
+#   返回 +CME ERROR: <code>（CME 58 = command not supported / not found，具体码随 +CMEE 设置）。
+#   本用例按「AT 引擎惯例」断言 CME 58，但这是跨指令族规律，skill 规定不臆测——
+#   运行后若设备返回 +CTM2M ERROR 或不同 CME 码，请据实测修正断言。
+name: CMDPARSE-指令名拼错回码(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；无需注网/平台（指令解析在 AT 引擎层）。
+  验证目标：AT+CTM2MREGG（不存在的指令名），期望返回 <CR><LF>+CME ERROR: 58<CR><LF>
+    （command not supported；CME 码随 +CMEE 设置，默认格式）。
+    注：本断言基于「AT 引擎层惯例」。文档 14.x 未定义「指令名不存在」的回码——
+    若设备实测返回 +CTM2M ERROR 或其他 CME 码，说明与惯例不符，应据实测修正。
+  文档依据：本指令集文档未明示「指令名拼错」回码；按 AT 引擎层惯例（+CMEE 控制）断言 CME 58。
+tags: [CTM2M, CMDPARSE, FUNC, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 设置 +CMEE=2 使 CME 错误返回数值码（若固件支持）
+  - command: AT+CMEE=2
+    on_failure: skip
+
+steps:
+  # 指令名拼错（多了个 G）
+  - command: AT+CTM2MREGG
+    timeout: 1.2
+    assert:
+      - { name: 拼错返回CME58, matches: '^\r\n\+CME ERROR: 58\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

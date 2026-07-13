@@ -1,0 +1,29 @@
+# CTM2M-CTM2MUPDATE-PARA-OVER_BINDINGMODE.yaml
+# 指令: AT+CTM2MUPDATE=<Binding Mode>  (文档 14.4)
+# 测试点：Binding Mode 越界（=2，文档仅定义 0/1）→ +CTM2M ERROR:3（参数值错误）。
+# 参数校验在指令受理时即拒绝，无需注网/平台。
+name: CTM2MUPDATE-BindingMode越界err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。无需注网/平台（参数校验在指令受理时即拒绝）。
+  验证目标：AT+CTM2MUPDATE=2（Binding Mode 文档仅定义 0=U / 1=UQ），期望返回
+    <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.4 参数 <Binding Mode>「0：U 模式；1：UQ 模式」；
+    <err> 表 err=3「参数值错误」；响应格式 <CR><LF>+CTM2M ERROR:<err><CR><LF>。
+tags: [CTM2M, CTM2MUPDATE, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.4 AT+CTM2MUPDATE=  Binding Mode=2 越界
+  - command: AT+CTM2MUPDATE=2
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

@@ -1,0 +1,72 @@
+# CTM2M-CTM2MREAD-FUNC-WITH_CACHE.yaml
+# 指令: AT+CTM2MREAD  (文档 14.9)
+# 测试点：有缓存下行数据时，返回 <data_len><data><CR><LF><CR><LF>OK<CR><LF>。
+# 平台依赖：需注网 + PDP + 登录 + 平台下发下行数据 + RMODE=0 或 2（缓存模式）。
+# 响应格式（文档 14.9）：<CR><LF><data_len><data><CR><LF><CR><LF>OK<CR><LF>
+#   示例：5,3132333435 / OK（data_len=5，data 为 hex）。
+name: CTM2MREAD-有缓存返回数据(严格字节级, 需平台)
+description: |
+  场景前提：需注网 + PDP + 登录平台(state>=2) + 中国电信 CTWing 平台下发下行数据 + RMODE=0 或 2
+    （缓存模式，见文档 14.8）。本用例为平台依赖型，无平台下发数据时 steps 会失败，属预期。
+  验证目标：缓存区有数据时，AT+CTM2MREAD 返回 <CR><LF><data_len>,<data><CR><LF><CR><LF>OK<CR><LF>，
+    其中 data_len 为整型长度，data 为十六进制字符，长度（字符数/2）应等于 data_len。
+    注：本用例需平台主动下发数据，平台触发依赖人工/外部，无数据时失败属预期。
+  文档依据：14.9 执行响应 <CR><LF><data_len><data><CR><LF><CR><LF>OK<CR><LF> + 示例 5,3132333435 / OK；
+    参数 <data> 十六进制字符、<data_len> 整型数据长度。
+tags: [CTM2M, CTM2MREAD, FUNC, needs-platform, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MRMODE?
+    extract: { init_mode: '\+CTM2MRMODE:(\d)' }
+    assert: { contains: "OK" }
+  # 14.8 设置 RMODE=2（缓存下行数据，供 READ 读取）
+  - command: AT+CTM2MRMODE=2
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  - command: AT+CTM2MREG
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "2" or state == "3"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+
+steps:
+  # 14.9 AT+CTM2MREAD  读取缓存数据（格式：<data_len>,<data> 后空行 OK）
+  # on_failure:continue —— 无平台下发数据时该步失败属预期（依赖外部触发）
+  - command: AT+CTM2MREAD
+    timeout: 2
+    on_failure: continue
+    extract:
+      data_len: '(\d+),[0-9A-Fa-f]+\r\n\r\nOK'
+      data_hex: '\d+,([0-9A-Fa-f]+)\r\n\r\nOK'
+    assert:
+      - { name: 有数据格式, matches: '^\r\n\d+,[0-9A-Fa-f]+\r\n\r\nOK\r\n$' }
+
+teardown:
+  - command: AT+CTM2MDEREG
+    timeout: 2
+  # 恢复初始 RMODE
+  - command: 'AT+CTM2MRMODE={{init_mode}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

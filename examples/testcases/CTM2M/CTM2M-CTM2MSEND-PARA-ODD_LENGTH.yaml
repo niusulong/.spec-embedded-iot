@@ -1,0 +1,29 @@
+# CTM2M-CTM2MSEND-PARA-ODD_LENGTH.yaml
+# 指令: AT+CTM2MSEND=<Data>  (文档 14.6)
+# 测试点：Data 长度不是偶数（奇数个十六进制字符）→ +CTM2M ERROR:17（Data 字段长度不是偶数）。
+# 用 7 个十六进制字符（0200040002080，奇数）触发。
+name: CTM2MSEND-数据长度奇数err17(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。数据格式校验一般在指令受理阶段，不依赖登录态。
+  验证目标：AT+CTM2MSEND=0200040002080（7 个十六进制字符，奇数长度），期望返回
+    <CR><LF>+CTM2M ERROR:17<CR><LF>（Data 字段长度不是偶数）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+    不确定性：若设备先校验登录态，未登录时会先返回 err 4 而非 err 17。
+  文档依据：14.6 <err> 表 err=17「Data 字段长度不是偶数」。
+tags: [CTM2M, CTM2MSEND, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.6 AT+CTM2MSEND=  7 个十六进制字符（奇数长度）
+  - command: AT+CTM2MSEND=0200040002080
+    timeout: 1.2
+    assert:
+      - { name: err17长度非偶, matches: '^\r\n\+CTM2M ERROR:17\r\n$' }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

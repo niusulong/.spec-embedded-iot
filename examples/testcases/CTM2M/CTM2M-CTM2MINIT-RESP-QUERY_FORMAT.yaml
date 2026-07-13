@@ -1,0 +1,44 @@
+# CTM2M-CTM2MINIT-RESP-QUERY_FORMAT.yaml
+# 指令: AT+CTM2MINIT?  查询模组接入物联网开放平台参数（文档 14.2）
+# 只测响应字节格式，不关心具体参数值是否正确。
+#
+# 注意（文档内部冲突，按 skill「格式表优先」处理）：
+#   - 文档 14.2「命令格式」表的查询响应：<CR><LF>+CTM2MINIT:<Sever_IP>,...,<Securitymode>[,(<PSKID>,<PSK>)]<CR><LF><CR><LF>OK<CR><LF>
+#     —— 冒号后无空格。
+#   - 文档 14.2「示例」：+CTM2MMINIT: 221.229.214.202,5683,3600,0,0  —— 冒号后有空格。
+#   skill 规定：响应格式表是字节级断言依据，示例只是用例设计参考。本用例按格式表断言（无空格）。
+#   若设备实测冒号后有空格，说明与文档格式表不符——属应捕获的偏差，运行后据此修正文档。
+name: CTM2MINIT-查询响应格式(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用；CTM2MINIT? 为只读查询，无需注网、无需平台。
+    该指令参数掉电保存，故 setup 先 extract 当前值，teardown 不改值（本用例仅查询不动值）。
+  验证目标：AT+CTM2MINIT? 的响应严格符合文档 14.2「响应格式表」：
+    <CR><LF>+CTM2MINIT:<Sever_IP>,<Port>,<lifetime>,<Binding Mode>,<Securitymode>[,(<PSKID>,<PSK>)]<CR><LF><CR><LF>OK<CR><LF>
+    冒号后无空格（依据格式表；示例中带空格属演示省略，不作字节依据）。
+  文档依据：14.2 命令格式表「查询」响应格式。
+tags: [CTM2M, CTM2MINIT, RESP, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+
+steps:
+  # 14.2 AT+CTM2MINIT?
+  - command: AT+CTM2MINIT?
+    extract:
+      ip: '\+CTM2MINIT:"?((?:\d+\.){3}\d+)"?'
+      port_no: '\+CTM2MINIT:[^,]*,\s*(\d+)'
+      lifetime: '\+CTM2MINIT:[^,]*,\s*\d+,(\d+)'
+      bmode: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,(\d)'
+      secmode: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,\d+,(\d)'
+    assert:
+      - { name: 严格格式_无PSK, matches: '^\r\n\+CTM2MINIT:([^,]*),\d+,\d+,\d,\d(\r\n\r\nOK\r\n)$' }
+      - { name: ip非空, var: ip, op: matches, value: '^.+$' }
+      - { name: lifetime范围, var: lifetime, op: between, min: 300, max: 1000000 }
+      - { name: bmode在0-1, var: bmode, op: in, values: ["0", "1"] }
+      - { name: secmode在0-2, var: secmode, op: in, values: ["0", "1", "2"] }
+
+teardown:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

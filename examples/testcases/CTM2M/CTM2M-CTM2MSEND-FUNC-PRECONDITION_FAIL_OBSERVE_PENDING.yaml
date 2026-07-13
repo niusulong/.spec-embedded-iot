@@ -1,0 +1,65 @@
+# CTM2M-CTM2MSEND-FUNC-PRECONDITION_FAIL_OBSERVE_PENDING.yaml
+# 指令: AT+CTM2MSEND=<Data>  (文档 14.6)
+# 测试点：已登录未 Observe(state=2) 时发送数据 → +CTM2M ERROR:15
+#   （平台未准备好接收数据，终端处于"已登录未 Observe"状态时不能发送数据）。
+# 文档状态机：state=2 → err 15（与 state=0/1/4 的 err 4 区分）。
+#
+# 场景依赖：要稳定触发 state=2，需平台登录成功但 19/0/0 Observe 未到达。
+# 实际平台可能在登录后很快下发 Observe（state 跳到 3），使此用例难以命中 err 15。
+# 属强环境依赖，用 needs-platform + on_failure:continue，未命中时不算失败。
+name: CTM2MSEND-已登录未Observe发送err15(严格字节级, 需平台)
+description: |
+  场景前提：需注网 + PDP + 已登录平台但 state==2（已登录未 Observe，即平台尚未下发 19/0/0）。
+    此状态难稳定构造（平台可能很快下发 Observe 跳到 state=3），属强环境依赖。
+    setup 等 state==2 才执行 steps；若 state 已是 3 则该步 SKIPPED（不算失败）。
+  验证目标：state==2 时执行 AT+CTM2MSEND=<合法hex>，期望返回
+    <CR><LF>+CTM2M ERROR:15<CR><LF>（平台未准备好接收数据）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.6 <err> 表 err=15「平台未准备好接收数据（终端处于"已登录未 Observe"状态时
+    不能发送数据）」；附「状态机与 send 权限速查」state=2 → err 15。
+tags: [CTM2M, CTM2MSEND, FUNC, needs-platform, p1]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CEREG?
+    extract: { nstat: 'CEREG:\s*\d,(\d)' }
+    poll:
+      until: 'nstat == "1" or nstat == "5"'
+      timeout: 60
+      interval: 3000
+    on_failure: continue
+  - command: AT+XIIC=1
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+XIIC?
+    extract: { xiic_state: '\+XIIC:\s*(\d)' }
+    poll:
+      until: 'xiic_state == "1"'
+      timeout: 60
+      interval: 2000
+    on_failure: continue
+  - command: AT+CTM2MREG
+    assert: { matches: '^\r\nOK\r\n$' }
+  - command: AT+CTM2MREG?
+    extract: { state: '\+CTM2M:(\d)' }
+    poll:
+      until: 'state == "2"'
+      timeout: 20
+      interval: 2000
+    on_failure: continue
+
+steps:
+  # 14.6 AT+CTM2MSEND=  state==2 时发送（→ err 15）；state 已变 3 则跳过
+  - command: AT+CTM2MSEND=02000400020805
+    timeout: 1.2
+    when: 'state == "2"'
+    on_failure: continue
+    assert:
+      - { name: err15平台未就绪, matches: '^\r\n\+CTM2M ERROR:15\r\n$' }
+
+teardown:
+  - command: AT+CTM2MDEREG
+    timeout: 2
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

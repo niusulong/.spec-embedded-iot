@@ -1,0 +1,40 @@
+# CTM2M-CTM2MINIT-PARA-OVER_BINDINGMODE.yaml
+# 指令: AT+CTM2MINIT=<Sever_IP>,<Port>,<lifetime>,<Binding Mode>,<Securitymode>  (文档 14.2)
+# 测试点：Binding Mode 越上限（=2，文档仅定义 0=U / 1=UQ）→ +CTM2M ERROR:3（参数值错误）。
+# CTM2MINIT 掉电保存，setup extract 初始值，teardown 恢复。IP/Port 用 env 引用（合法上下文）。
+name: CTM2MINIT-BindingMode越上限err3(严格字节级)
+description: |
+  场景前提：设备已上电、AT 口可用。CTM2MINIT 掉电保存，setup extract 初始值，teardown 恢复。
+  验证目标：AT+CTM2MINIT 用 Binding Mode=2（文档仅定义 0/1），其余参数合法，期望返回
+    <CR><LF>+CTM2M ERROR:3<CR><LF>（参数值错误）。
+    注：+CTM2M ERROR 是业务码，故步骤加 timeout 避免空等。
+  文档依据：14.2 参数 <Binding Mode>「0 – U，1 – UQ」（仅两值）；
+    <err> 表 err=3「参数值错误」；响应格式 <CR><LF>+CTM2M ERROR:<err><CR><LF>（冒号后无空格）。
+tags: [CTM2M, CTM2MINIT, PARA, p0]
+port: COM5
+
+setup:
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }
+  # 14.2 AT+CTM2MINIT?  提取初始值用于恢复
+  - command: AT+CTM2MINIT?
+    extract:
+      init_ip: '\+CTM2MINIT:"?((?:\d+\.){3}\d+)"?'
+      init_port: '\+CTM2MINIT:[^,]*,\s*(\d+)'
+      init_life: '\+CTM2MINIT:[^,]*,\s*\d+,(\d+)'
+      init_bm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,(\d)'
+      init_sm: '\+CTM2MINIT:[^,]*,\s*\d+,\d+,\d+,(\d)'
+    assert: { contains: "OK" }
+
+steps:
+  # 14.2 AT+CTM2MINIT=  Binding Mode=2 越上限（合法 IP/Port 用 env，lifetime/Security 合法）
+  - command: 'AT+CTM2MINIT="{{ctwing.host}}",{{ctwing.port}},300,2,0'
+    timeout: 1.2
+    assert:
+      - { name: err3参数值错误, matches: '^\r\n\+CTM2M ERROR:3\r\n$' }
+
+teardown:
+  # 恢复初始值（{{var}} 模板替换，init_ip 取出的是裸 IP，手动加引号）
+  - command: 'AT+CTM2MINIT="{{init_ip}}",{{init_port}},{{init_life}},{{init_bm}},{{init_sm}}'
+  - command: ATE0
+    assert: { matches: '^\r\nOK\r\n$' }

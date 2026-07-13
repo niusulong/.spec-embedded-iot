@@ -1,6 +1,6 @@
 {
   "name": "agents",
   "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结，以及\"需求→方案→实施计划\"完整需求实现链路，配合跨项目知识库语义检索",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "contextFileName": "GEMINI.md"
 }
