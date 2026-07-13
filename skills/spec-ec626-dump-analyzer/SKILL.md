@@ -1,5 +1,5 @@
 ---
-name: spec-ec-dump-analyzer
+name: spec-ec626-dump-analyzer
 description: >
   EC 平台 (EigenComm ARM Cortex-M + FreeRTOS) crash dump 分析。
   适用于 EC626/EC626E/EC616，从构建输出文件自动推导芯片内存布局。

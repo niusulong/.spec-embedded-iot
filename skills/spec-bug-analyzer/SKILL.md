@@ -7,7 +7,7 @@ description: >-
   "连接失败/断连"、"AT 报 ERROR"、"模块重启/死机怎么排查"时使用——只要用户意图是
   "找出问题为什么发生"，即使没有明说"分析bug"也应触发。分析过程会自动检索历史知识库相似案例。
   边界：若用户直接给出 crash dump 文件、要求解析 PC/LR/SP/堆栈寄存器或 Cortex-R/M 异常反汇编，
-  改用 spec-ec-dump-analyzer（EC616/EC626/Cortex-M）或 spec-asr1603-dump-analyzer（ASR/Cortex-R）；
+  改用 spec-ec626-dump-analyzer（EC616/EC626/Cortex-M）或 spec-asr1603-dump-analyzer（ASR/Cortex-R）；
   若分析确认根因是内存泄漏且需要精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
 version: 3.3
@@ -62,7 +62,7 @@ ls ~/.spec-embedded-iot/knowledge/platform/
 
 | 架构大类 | 代表检索平台 | dump 技能 |
 |---------|-------------|----------|
-| **EC 系**（Cortex-M + FreeRTOS） | `EC626` | `spec-ec-dump-analyzer` |
+| **EC 系**（Cortex-M + FreeRTOS） | `EC626` | `spec-ec626-dump-analyzer` |
 | **ASR 系**（Cortex-R + ThreadX） | `ASR1603` | `spec-asr1603-dump-analyzer` |
 
 架构大类优先由检索平台推断（`EC626`→EC 系、`ASR1603`→ASR 系）。其余平台（`N58`/`UIS8850`/`UIS8852`）的架构归属需结合日志线索判断或询问用户；日志线索（`memp_malloc`/`excep_store`/`tcpip_thread`/`nv_` 倾向 EC 系；`tx_thread`/`[threadx]`/PSRAM/`DataAbort` 倾向 ASR 系）仅作交叉印证，不作为首要识别依据。
@@ -107,7 +107,7 @@ ls ~/.spec-embedded-iot/knowledge/platform/
 
 **死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按「平台识别 → 2」确定的**架构大类**分派深度分析：
 
-- **EC 系**（Cortex-M + FreeRTOS，如 `EC626`）→ 引导使用 `spec-ec-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
+- **EC 系**（Cortex-M + FreeRTOS，如 `EC626`）→ 引导使用 `spec-ec626-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
 - **ASR 系**（Cortex-R + ThreadX，如 `ASR1603`）→ 引导使用 `spec-asr1603-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
 
 > `spec-dump-analyzer` 已拆分为上述两个平台专属技能，不要引用旧名称。本技能仍可继续做日志层的时序与现象分析，与 dump 分析器互补。

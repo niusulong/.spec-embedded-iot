@@ -12,7 +12,7 @@ description: >
   即使没明说 "分析dump" 也应触发。即使用户只是粘贴了 dtools.log 或一组崩溃寄存器、
   或提到 "设备死机需要分析 8852 dump"，也应触发。
   仅适用于 Unisoc UIS8852/N706C (RISC-V) 平台；ASR (Cortex-R) 用 spec-asr1603-dump-analyzer，
-  EC (Cortex-M) 用 spec-ec-dump-analyzer。
+  EC (Cortex-M) 用 spec-ec626-dump-analyzer。
 ---
 
 通过 DTools 抓取的 ramdump 文件，分析 UIS8852 / N706C（Unisoc RISC-V + RT-Thread）AP 核的死机根因。

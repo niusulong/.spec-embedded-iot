@@ -24,7 +24,7 @@
 | **栈溢出** | HardFault、`stack overflow`、栈水位检查告警 | 任务栈配置过小 / 递归或大局部变量 |
 | **ASSERT 触发** | 含 `文件名:行号` 的 `ASSERT` | 直接定位断言点，分析为何前置条件不满足 |
 | **看门狗复位** | `WDT`、`IWDT`、长时间无喂狗 | 某任务死循环 / 被高优先级任务饿死 / 中断中阻塞 |
-| **excep_store 异常** | `EXC_` 前导、HardFault 寄存器组 | 转交 `spec-ec-dump-analyzer` 解析调用链 |
+| **excep_store 异常** | `EXC_` 前导、HardFault 寄存器组 | 转交 `spec-ec626-dump-analyzer` 解析调用链 |
 
 ## ASR 平台（Cortex-R + ThreadX）专属
 
