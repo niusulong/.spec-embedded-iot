@@ -13,11 +13,13 @@
 
 | 子命令 | 用途 | 关键参数 |
 |--------|------|----------|
-| `flows` | 列出所有 TCP/UDP 流摘要（端点对/时间/包数/结局 FIN/RST） | `input` `--ip`(过滤IP) `--port`(过滤端口) |
-| `show` | 展示指定流的逐包完整解码（时间/方向/各层字段/payload摘要） | `input` `--flow-id` 或 `--lport` `--hex`(附raw hex) |
-| `around` | **核心**：给定时刻，定位异常前后的报文交互（默认 ±5s） | `input` `--time`(HH:MM:SS.mmm) `--window`(秒) `--lport`(锁单流) |
-| `search` | 跨所有包搜 **明文** payload（如 HTTP 状态码、FTP 命令、DNS 域名） | `input` `-k`(关键字) `--max-results` |
-| `decode` | 单包深度解码（wireshark 风格分层树） | `input` `--packet`(序号) `--hex` |
+| `flows` | 列出所有 TCP/UDP 流摘要（端点对/时间/包数/结局 FIN/RST） | `input` `--ip`(过滤IP) `--port`(过滤端口) `--report`(归档) |
+| `show` | 展示指定流的逐包完整解码（时间/方向/各层字段/payload摘要） | `input` `--flow-id` 或 `--lport` `--hex`(附raw hex) `--report`(归档) |
+| `around` | **核心**：给定时刻，定位异常前后的报文交互（默认 ±5s） | `input` `--time`(HH:MM:SS.mmm) `--window`(秒) `--lport`(锁单流) `--report`(归档) |
+| `search` | 跨所有包搜 **明文** payload（如 HTTP 状态码、FTP 命令、DNS 域名） | `input` `-k`(关键字) `--max-results` `--report`(归档) |
+| `decode` | 单包深度解码（wireshark 风格分层树） | `input` `--packet`(序号) `--hex` `--report`(归档) |
+
+> **`--report` 留痕**：所有子命令支持 `--report PATH`，输出同时打印到屏幕并归档为 markdown 文件（含运行时间、pcap 路径、子命令、完整输出）。推荐路径 `.spec/bug/{工作项ID}_{问题描述}/analysis/pcap_report.md`，与 dump 分析的 `analysis/` 归档统一。
 
 ## 典型工作流
 

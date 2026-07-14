@@ -230,6 +230,7 @@ def main():
     p_stats.add_argument('-k', '--keywords', nargs='+', required=True, help='统计关键字')
     p_stats.add_argument('--start-time', help='开始时间')
     p_stats.add_argument('--end-time', help='结束时间')
+    p_stats.add_argument('--report', help='生成报告文件路径。推荐 .spec/bug/{id}_{desc}/analysis/log_report.md')
 
     # compare 子命令
     p_compare = subparsers.add_parser('compare', help='流程对比')
@@ -240,6 +241,7 @@ def main():
     p_compare.add_argument('--normal-end-time', help='正常日志结束时间')
     p_compare.add_argument('--abnormal-start-time', help='异常日志开始时间')
     p_compare.add_argument('--abnormal-end-time', help='异常日志结束时间')
+    p_compare.add_argument('--report', help='生成报告文件路径。推荐 .spec/bug/{id}_{desc}/analysis/log_report.md')
 
     args = parser.parse_args()
 
@@ -286,6 +288,21 @@ def main():
             last = times[-1] if times else '-'
             print(f"  {kw}: {data['count']}次, 首次={first}, 最后={last}")
 
+        if args.report:
+            from datetime import datetime
+            with open(args.report, 'w', encoding='utf-8') as f:
+                f.write(f"# 日志统计报告\n\n")
+                f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write(f"## 关键字统计\n\n")
+                f.write("| 关键字 | 次数 | 首次出现 | 最后出现 |\n")
+                f.write("|--------|------|----------|----------|\n")
+                for kw, data in stats.items():
+                    times = data.get('times', [])
+                    first = times[0] if times else '-'
+                    last = times[-1] if times else '-'
+                    f.write(f"| {kw} | {data['count']} | {first} | {last} |\n")
+            print(f"报告已生成: {args.report}")
+
     elif args.command == 'compare':
         normal_range = None
         if args.normal_start_time and args.normal_end_time:
@@ -305,6 +322,25 @@ def main():
         print(f"\n仅在异常流程中出现 ({len(result['only_in_abnormal'])} 个):")
         for item in result['only_in_abnormal'][:20]:
             print(f"  - {item}")
+
+        if args.report:
+            from datetime import datetime
+            with open(args.report, 'w', encoding='utf-8') as f:
+                f.write(f"# 日志对比报告\n\n")
+                f.write(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+                f.write(f"- 正常日志: `{args.normal}`\n")
+                f.write(f"- 异常日志: `{args.abnormal}`\n\n")
+                f.write(f"## 统计\n\n")
+                f.write(f"- 正常流程: {result['normal_count']} 个事件\n")
+                f.write(f"- 异常流程: {result['abnormal_count']} 个事件\n")
+                f.write(f"- 共同事件: {len(result['common'])} 个\n\n")
+                f.write(f"## 仅在异常流程中出现（{len(result['only_in_abnormal'])} 个）\n\n")
+                for item in result['only_in_abnormal'][:50]:
+                    f.write(f"- {item}\n")
+                f.write(f"\n## 仅在正常流程中出现（{len(result['only_in_normal'])} 个）\n\n")
+                for item in result['only_in_normal'][:50]:
+                    f.write(f"- {item}\n")
+            print(f"报告已生成: {args.report}")
 
     else:
         parser.print_help()

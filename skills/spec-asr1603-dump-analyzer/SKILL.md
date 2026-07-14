@@ -14,6 +14,7 @@ description: >-
   stack overflow analysis, PSRAM corruption, Cortex-R exception, ARM fault analysis,
   trace32 dump, PC 0x7e, HardFault handler, embedded crash diagnosis, WDT timeout.
   即使用户只是粘贴了一组崩溃寄存器值或提到设备死机需要分析，也应触发此技能。
+version: 1.1
 ---
 
 通过设备死机后抓取的 crash dump 文件，分析 ARM Cortex-R 嵌入式系统的死机原因。
@@ -44,6 +45,15 @@ python "scripts/dump_analyzer.py" full-analyze --dump-dir <dump_dir> --map <map_
 ```
 
 `full-analyze` 自动执行以下步骤：版本校验、异常头解析、PC/LR 解析、DDR 栈分析、全线程扫描、堆扫描、AXF vs DDR 代码完整性检查，并输出初步根因结论。但它不执行反汇编和 PSRAM 损坏映射——这些需要按下方步骤手动执行。
+
+**推荐：一键跑全部分析脚本，输出自动归档 + 生成 INDEX.md**（full-analyze + 代码完整性 + 静态栈深度 + 反汇编，便于追溯对比）：
+
+```bash
+python "scripts/run_all.py" <dump_dir> <bug_out_dir> --map <map_file> --axf <axf_file>
+# 例: python scripts/run_all.py .spec/.../dump/ .spec/bug/7017934398_dat abort/ --map firmware.map --axf app.axf
+```
+
+产出 `<bug_out_dir>/analysis/` 下：`01_full_analyze.txt`（主报告）+ `02_code_compare.txt`（代码完整性）+ `03_stack_depth.txt`（静态栈深度）+ `04_disasm.txt`（反汇编）+ `INDEX.md`（脚本功能 + 自动提取的关键结论）+ `_meta.json`（追溯上下文）。`bug_out_dir` 即 bug 目录 `.spec/bug/{工作项ID}_{问题描述}/`。`run_all` 会从 full-analyze 输出自动提取 PC/LR/DDR_BASE 传给下游脚本。
 
 ## 执行流程
 

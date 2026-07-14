@@ -39,10 +39,15 @@ TZ_CST = timezone(timedelta(hours=8))
 
 
 def _run_script(args):
-    """运行 pcap_analyzer.py 子命令，返回 (returncode, stdout, stderr)"""
+    """运行 pcap_analyzer.py 子命令，返回 (returncode, stdout, stderr)。
+    scapy 在 Windows 无 libpcap 时子进程偶发段错误（rc=3221225477/0xC0000005），
+    自动重试一次以规避环境级偶发崩溃。"""
     cmd = [sys.executable, SCRIPT] + args
-    # 屏蔽 scapy 的 libpcap 警告无关紧要，合并输出便于断言
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8")
+    for attempt in range(2):
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60, encoding="utf-8")
+        if r.returncode != 3221225477:  # 非段错误，直接返回
+            return r.returncode, r.stdout, r.stderr
+        # 段错误：偶发，重试一次
     return r.returncode, r.stdout, r.stderr
 
 
@@ -441,7 +446,7 @@ class TestEndToEnd(unittest.TestCase):
         """空 pcap 不崩溃"""
         self._write_pcap([])
         rc, out, err = _run_script(["flows", self.pcap_path])
-        self.assertEqual(rc, 0)
+        self.assertEqual(rc, 0, f"空 pcap 返回码 {rc}")
 
     def test_packet_out_of_range(self):
         """decode 越界包序号给出明确错误"""
@@ -449,6 +454,31 @@ class TestEndToEnd(unittest.TestCase):
         self._write_pcap(pkts)
         rc, out, err = _run_script(["decode", self.pcap_path, "--packet", "999"])
         self.assertIn("超出范围", out + err)
+
+    def test_report_output(self):
+        """--report 输出归档到 markdown 文件"""
+        t0 = datetime(2026, 7, 9, 19, 0, 0, tzinfo=TZ_CST).timestamp()
+        pkts = [
+            _mkpkt_tcp("10.0.0.1", "10.0.0.2", 50100, 80, "S", 1, 0, t=t0),
+            _mkpkt_tcp("10.0.0.2", "10.0.0.1", 80, 50100, "SA", 1, 2, t=t0 + 0.01),
+            _mkpkt_tcp("10.0.0.1", "10.0.0.2", 50100, 80, "PA", 2, 2,
+                       payload=b"GET / HTTP/1.1\r\n\r\n", t=t0 + 0.02),
+        ]
+        self._write_pcap(pkts)
+        report_path = os.path.join(self.tmpdir, "analysis", "pcap_report.md")
+        rc, out, err = _run_script(["flows", self.pcap_path, "--report", report_path])
+        self.assertEqual(rc, 0, f"--report 失败: {err}")
+        # 报告文件生成
+        self.assertTrue(os.path.exists(report_path))
+        with open(report_path, encoding="utf-8") as f:
+            content = f.read()
+        # 含 markdown 头 + 元信息 + 完整输出
+        self.assertIn("# pcap 报文分析报告", content)
+        self.assertIn("运行时间", content)
+        self.assertIn("pcap 文件", content)
+        self.assertIn("子命令", content)
+        self.assertIn("TCP", content)  # 实际输出内容
+        self.assertIn("[report]", out)  # stdout 提示报告路径
 
 
 @unittest.skipUnless(SCAPY_OK, "scapy 未安装")

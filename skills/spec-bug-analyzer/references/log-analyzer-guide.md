@@ -6,10 +6,12 @@
 
 | 子命令 | 用途 | 关键参数 |
 |--------|------|----------|
-| `search` | 关键字搜索 + 上下文 | `-k` `--start-time` `--end-time` `-c` `--report` |
+| `search` | 关键字搜索 + 上下文 | `-k` `--start-time` `--end-time` `-c` `--report`(归档) |
 | `extract` | 提取日志片段到文件 | `--start-time` `--end-time` `--start-line` `--end-line` `-k` `-o` |
-| `stats` | 关键字出现次数和时间分布 | `-k` `--start-time` `--end-time` |
-| `compare` | 正常 vs 异常流程对比 | `normal` `abnormal` `-k` `--normal-start-time` `--abnormal-start-time` |
+| `stats` | 关键字出现次数和时间分布 | `-k` `--start-time` `--end-time` `--report`(归档) |
+| `compare` | 正常 vs 异常流程对比 | `normal` `abnormal` `-k` `--normal-start-time` `--abnormal-start-time` `--report`(归档) |
+
+> **`--report` 留痕**：`search`/`stats`/`compare` 支持 `--report PATH`，输出归档为 markdown 报告。推荐路径 `.spec/bug/{工作项ID}_{问题描述}/analysis/log_report.md`，与 dump/pcap 分析的 `analysis/` 归档统一。
 
 ## compare 两种模式
 

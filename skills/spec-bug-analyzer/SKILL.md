@@ -11,7 +11,7 @@ description: >-
   改用 spec-ec626-dump-analyzer（EC616/EC626/Cortex-M）或 spec-asr1603-dump-analyzer（ASR/Cortex-R）；
   若分析确认根因是内存泄漏且需要精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
-version: 3.6
+version: 3.7
 author: niusulong
 ---
 

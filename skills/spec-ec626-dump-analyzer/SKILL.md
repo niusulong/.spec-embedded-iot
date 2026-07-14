@@ -13,6 +13,7 @@ description: >
   内存池耗尽、memp_malloc fail、内存不足、LWIP OOM、内存泄漏、
   trace_node、大块未释放、堆分配追踪。
   仅适用于 EC 平台 (Cortex-M)，不适用于 ASR Cortex-R。
+version: 1.1
 ---
 
 通过 RAM dump 文件分析 EC626/EC626E/EC616 死机原因。
@@ -50,6 +51,17 @@ description: >
 **PMUD dump 头部自动处理**：部分 EC 设备的 dump 文件以 "PMUD" 魔数开头（通常 0x48=72 字节头部），包含时间戳、芯片标识、RAM 大小等元数据。脚本自动检测并剥离 PMUD 头部，确保文件偏移 == RAM 地址，无需手动处理。输出 `[PMUD] Dump header detected (72 bytes), stripped` 表示已检测并剥离。裸 dump 文件（无 PMUD 头部）自动跳过。
 
 ### Step 2：运行 full-analyze（核心步骤）
+
+**推荐：一键跑全部分析脚本，输出自动归档 + 生成 INDEX.md**（便于追溯对比）：
+
+```bash
+python "scripts/run_all.py" <dump_bin> <bug_out_dir> --map <map_file> [--elf <elf>] [--tcb-addr 0x...]
+# 例: python scripts/run_all.py RamDumpData_*.bin .spec/bug/6974423486_hardfault/ --map firmware.map
+```
+
+产出 `<bug_out_dir>/analysis/` 下：每个脚本的 `NN_<name>.txt` 完整输出 + `INDEX.md`（脚本功能 + 自动提取的关键结论）+ `_meta.json`（追溯上下文）。`bug_out_dir` 即 bug 目录 `.spec/bug/{工作项ID}_{问题描述}/`。
+
+**或单独运行 full-analyze**（只看主报告，不归档）：
 
 ```bash
 SKILL_DIR="<Base directory for this skill>"

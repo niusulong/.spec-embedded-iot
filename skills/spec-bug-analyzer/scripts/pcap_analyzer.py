@@ -23,6 +23,7 @@ pcap_analyzer.py — pcap 报文解析工具，供 AI 直接替代 Wireshark 完
 """
 import sys
 import os
+import io
 import argparse
 from datetime import datetime, timezone, timedelta
 
@@ -808,11 +809,14 @@ def main():
         epilog="依赖 scapy: pip install scapy")
     subparsers = parser.add_subparsers(dest="command", help="子命令")
 
+    REPORT_HELP = "输出归档到 markdown 文件。推荐路径 .spec/bug/{id}_{desc}/analysis/pcap_report.md"
+
     # flows
     p = subparsers.add_parser("flows", help="列出所有 TCP/UDP 流摘要")
     p.add_argument("input", help="pcap 文件路径")
     p.add_argument("--ip", help="过滤 IP 地址")
     p.add_argument("--port", help="过滤端口号")
+    p.add_argument("--report", help=REPORT_HELP)
     p.set_defaults(func=cmd_flows)
 
     # show
@@ -821,6 +825,7 @@ def main():
     p.add_argument("--flow-id", type=int, help="流序号（flows 命令输出的 # 列）")
     p.add_argument("--lport", help="本地端口")
     p.add_argument("--hex", action="store_true", help="附 raw hex")
+    p.add_argument("--report", help=REPORT_HELP)
     p.set_defaults(func=cmd_show)
 
     # around
@@ -829,6 +834,7 @@ def main():
     p.add_argument("--time", required=True, help="异常时刻 HH:MM:SS.mmm")
     p.add_argument("--window", type=float, default=5.0, help="时间窗口秒数（默认 5）")
     p.add_argument("--lport", help="锁定单个流（本地端口）")
+    p.add_argument("--report", help=REPORT_HELP)
     p.set_defaults(func=cmd_around)
 
     # search
@@ -836,6 +842,7 @@ def main():
     p.add_argument("input", help="pcap 文件路径")
     p.add_argument("-k", "--keywords", nargs="+", required=True, help="搜索关键字")
     p.add_argument("--max-results", type=int, default=50, help="最大结果数")
+    p.add_argument("--report", help=REPORT_HELP)
     p.set_defaults(func=cmd_search)
 
     # decode
@@ -843,13 +850,54 @@ def main():
     p.add_argument("input", help="pcap 文件路径")
     p.add_argument("--packet", type=int, required=True, help="包序号")
     p.add_argument("--hex", action="store_true", help="附 raw hex")
+    p.add_argument("--report", help=REPORT_HELP)
     p.set_defaults(func=cmd_decode)
 
     args = parser.parse_args()
     if not args.command:
         parser.print_help()
         sys.exit(1)
-    args.func(args)
+
+    report_path = getattr(args, "report", None)
+    if report_path:
+        # tee 模式：同时写 stdout + 文件
+        buf = io.StringIO()
+        orig_stdout = sys.stdout
+
+        class Tee:
+            def __init__(self, *streams):
+                self.streams = streams
+
+            def write(self, data):
+                for s in self.streams:
+                    s.write(data)
+
+            def flush(self):
+                for s in self.streams:
+                    if hasattr(s, "flush"):
+                        s.flush()
+
+        sys.stdout = Tee(orig_stdout, buf)
+        try:
+            args.func(args)
+        finally:
+            sys.stdout = orig_stdout
+        # 写入报告文件
+        if os.path.isdir(report_path):
+            report_path = os.path.join(report_path, "pcap_report.md")
+        os.makedirs(os.path.dirname(os.path.abspath(report_path)), exist_ok=True)
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write("# pcap 报文分析报告\n\n")
+            f.write("- **运行时间**: %s\n" % stamp)
+            f.write("- **pcap 文件**: `%s`\n" % os.path.abspath(args.input))
+            f.write("- **子命令**: `%s`\n\n" % args.command)
+            f.write("---\n\n```\n")
+            f.write(buf.getvalue())
+            f.write("\n```\n")
+        print("\n[report] %s" % report_path)
+    else:
+        args.func(args)
 
 
 if __name__ == "__main__":
