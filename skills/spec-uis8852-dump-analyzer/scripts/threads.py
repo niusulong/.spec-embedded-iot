@@ -59,6 +59,93 @@ def stack_watermark(mem, stack_addr, stack_size):
     return used, magic
 
 
+# ---------------------------------------------------------------------------
+# Importable TCB enumeration (shared by unwind_cfi.py / assert_reason.py).
+# Mirrors the scan + signature logic inside main(), but module-level so callers
+# get the same false-positive-resistant thread list without re-implementing it.
+# ---------------------------------------------------------------------------
+SCAN_REGIONS = [
+    (0x80160000, 0x801c0000),   # PSRAM BSS (static TCBs, heap-adjacent)
+    (0xc0200000, 0xc0280000),   # IRAM (task stacks + TCBs)
+    (0x801a0000, 0x80280000),   # PSRAM heap (dynamically-created threads)
+]
+
+
+def tcb_name(mem, O, tcb):
+    """Decode tcb->name if it points to a plausible task identifier, else ''."""
+    try:
+        name_p = mem.u32(tcb + O["name"])
+    except Exception:
+        return ""
+    if not (0x00008000 <= name_p < 0x100000000):
+        return ""
+    try:
+        s = mem.cstr(name_p, 20)
+    except Exception:
+        return ""
+    if not s or len(s) < 2 or not all(33 <= ord(c) < 127 for c in s):
+        return ""
+    if "." in s or "/" in s or len(set(s)) <= 1:
+        return ""
+    return s
+
+
+def is_valid_tcb(mem, O, tcb):
+    """Strong osThread_t signature: printable name + sane stack size + stack
+    base in RAM + stat valid + SP inside its own stack region. Returns name or ''."""
+    name = tcb_name(mem, O, tcb)
+    if not name:
+        return ""
+    try:
+        ss = mem.u32(tcb + O["stackSize"]); sa = mem.u32(tcb + O["stackAddr"])
+        sp = mem.u32(tcb + O["sp"])
+        stat = (mem.u32(tcb + O["stat"]) & 0xf) if "stat" in O else 0
+    except Exception:
+        return ""
+    if not (256 <= ss <= (1 << 16)):
+        return ""
+    if not (0x00010000 <= sa < 0x80400000 or 0xc0200000 <= sa < 0xc0280000):
+        return ""
+    if stat > 4:
+        return ""
+    if not (sa <= sp <= sa + ss):
+        return ""
+    return name
+
+
+def enumerate_tcbs(mem, O):
+    """Return [(tcb_addr, name), ...] by signature scan (robust to list
+    corruption). Ordered by address."""
+    out = []
+    found = set()
+    for lo, hi in SCAN_REGIONS:
+        a = lo
+        while a < hi:
+            try:
+                name_p = mem.u32(a + O["name"])
+            except Exception:
+                a += 8; continue
+            if 0x00008000 <= name_p < 0x100000000:
+                nm = is_valid_tcb(mem, O, a)
+                if nm and a not in found:
+                    found.add(a)
+                    out.append((a, nm))
+            a += 8
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def find_thread_by_stack(mem, O, addr):
+    """Return (tcb, name) of the thread whose stack region contains addr, or None."""
+    if not addr:
+        return None
+    for tcb, nm in enumerate_tcbs(mem, O):
+        sa = mem.u32(tcb + O["stackAddr"]); ss = mem.u32(tcb + O["stackSize"])
+        if sa <= addr < sa + ss:
+            return tcb, nm
+    return None
+
+
 def main():
     mem = Mem(DUMP)
     syms = Symbols(ELF)

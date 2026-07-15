@@ -201,6 +201,14 @@ def main():
                 fn, fl = fn2, "%s+0x%x (no addr2line)" % (fn2, off)
             print("  0x%08x  %-30s  %s" % (a, (fn or "")[:30], fl))
 
+    print("\n" + "=" * 92)
+    print(" 深入分析（更干净准确的调用链 + 精准结论）")
+    print("=" * 92)
+    print("  上面的调用链是【启发式扫描】，RISC-V 无帧指针时常含噪声。优先看：")
+    print("  → 09_unwind_cfi.txt   DWARF .debug_frame CFI 确定性逐帧回溯（崩溃链 + 全任务逐线程链）")
+    print("  → 10_assert_reason.txt 断言模式推理：scheduler 栈检查断言自动判定【哪个线程栈溢出】+ 根因链")
+    print("     （仅当 ELF 含 .debug_frame；缺失时回退到上面的启发式 02_unwind.txt）")
+
 
 if __name__ == "__main__":
     main()

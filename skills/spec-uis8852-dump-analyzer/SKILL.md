@@ -145,7 +145,17 @@ python "scripts/unwind.py" <dump_dir> <ap.elf>
 
 #### 4.2 帧感知栈回溯（**不要用纯启发式扫描**）
 
-RISC-V 默认不用 frame pointer，启发式"栈上找代码地址"会有**大量噪声**（本次案例中 `osiWorkEnqueue`/`SHA224`/`DMA_Irq` 都被误判）。正确做法：
+RISC-V 默认不用 frame pointer，启发式"栈上找代码地址"会有**大量噪声**（本次案例中 `osiWorkEnqueue`/`SHA224`/`DMA_Irq` 都被误判）。
+
+**首选：DWARF CFI 确定性回溯**（ELF 含 `.debug_frame` 时，与 TRACE32/GDB 同机制，逐帧精确无噪声）：
+
+```bash
+python "scripts/unwind_cfi.py" <dump_dir> <ap.elf>
+```
+
+输出三段：①崩溃上下文链（异常/断言发生时正在执行的线程，从异常帧回溯）②**全任务逐线程链**（每线程从其 `tcb.sp` 保存的切换帧回溯——根因常藏在这里，崩溃点链往往看不到）③交叉引用（异常帧归属线程 vs `g_osCurrentThread`=to_thread）。详见 `references/cfi-unwind-guide.md`。
+
+**回退：prologue 启发式**（ELF 无 `.debug_frame` 时）：
 
 ```bash
 python "scripts/unwind.py" <dump_dir> <ap.elf>   # 自动 prologue 解析 + 帧步进
@@ -315,6 +325,11 @@ python "scripts/trace_history.py" <dump_dir> <ap.elf>
 ```
 gBlueScreenAbortType?
 ├── 0xFE (ASSERT)
+│   ├── scheduler.c:112 assert（_osSchedulerStackCheck）→  ★跑 10_assert_reason.py 自动判定
+│   │   ⚠ 陷阱：断言是【正在执行的线程】在 osSchedule 里触发的，但溢出的是【to_thread】
+│   │      （= g_osCurrentThread，scheduler.c:271 先于 :287 赋值）。只看崩溃链会把栈归错线程！
+│   │   判定：to_thread 栈哨兵字节(stackAddr) != '#' 且 水位~100% → 该线程栈溢出
+│   │   根因链：回溯 to_thread 的 tcb.sp（它在跑什么撑爆栈，常是回调里的深/阻塞调用）
 │   ├── dlmalloc.c assert
 │   │   ├── 堆使用率 >95% + top <64B  →  堆耗尽（主因）
 │   │   │   └── 查 malloc trace ring 最大户 + 栈上 osMalloc 调用者
@@ -356,9 +371,12 @@ python "$SKILL_DIR/scripts/uis8852_analyze.py" <dump_dir> <ap.elf>
 | 脚本 | 用途 | 关键产出 |
 |------|------|---------|
 | `common.py` | 公共模块（Mem 内存区+外设扫描、Symbols 符号+DWARF struct 偏移、工具链查找、addr2line/objdump） | 不直接运行 |
-| `run_all.py` | **一键跑全部 8 个分析脚本** + 编号归档 + `INDEX.md` + `_meta.json` + dump 反向 link | 全套证据 + 核对闭环 |
+| `run_all.py` | **一键跑全部 10 个分析脚本** + 编号归档 + `INDEX.md` + `_meta.json` + dump 反向 link | 全套证据 + 核对闭环 |
 | `uis8852_analyze.py` | **起点**：panic 现场 + 寄存器 + IRQ + 启发式回溯 + 源码定位 | 崩溃定性 |
-| `unwind.py` | 帧感知栈回溯（prologue 解析）+ 当前 IRQ 权威确认 | 真实调用链、中断身份 |
+| `cfi.py` | DWARF `.debug_frame` CFI 回溯引擎（库：`CFIUnwinder`/`unwind_exception`/`unwind_thread`） | 不直接运行 |
+| `unwind_cfi.py` | **DWARF CFI 确定性回溯**（首选，干净无噪声）：崩溃链 + 全任务逐线程链 | 精确调用链（含根因线程） |
+| `assert_reason.py` | **断言模式推理**：scheduler 栈检查 → 自动判定【哪个线程栈溢出】+ 根因链 | 精准结论（防归错线程） |
+| `unwind.py` | 帧感知栈回溯（prologue 启发式，CFI 缺失时回退）+ 当前 IRQ 权威确认 | 调用链、中断身份 |
 | `threads.py` | 任务列表（扫描法）+ 每任务栈水位 | 栈溢出 / 死锁 / 调度异常 |
 | `trace_history.py` | **任务/中断切换历史**（崩溃前调度序列 + IRQ 风暴） | WDT/死锁/饿死的时序证据 |
 | `heap_state.py` | 堆状态（使用率）+ malloc trace ring + SLOG ISR 日志 | 耗尽度 + 堆消耗户 |
@@ -375,7 +393,7 @@ RISC-V 工具链在 `idh.code/prebuilts/` 下（`riscv64-unknown-elf-addr2line.e
 
 - 报告路径：`.spec/bug/{工作项ID}_{问题描述}/Dump分析.md`
 - **脚本输出归档**（结果主存在 bug 目录，持久）：`<bug_dir>/analysis/` 下：
-  - `01_uis8852_analyze.txt` … `08_code_compare.txt`（**编号前缀**=按分析流程顺序，`ls` 自动排序）
+  - `01_uis8852_analyze.txt` … `10_assert_reason.txt`（**编号前缀**=按分析流程顺序，`ls` 自动排序）
   - `INDEX.md` — 人工索引：头部"📌 核对原始数据"段含 **dump 绝对路径** + "如何核对"指引（每结论对照哪个 `.bin` 的哪个 offset）
   - `_meta.json` — 运行元数据（dump 路径/ELF/固件版本/crash PC/时间/脚本清单），结果可追溯回原始 dump
 - **dump 目录反向 link**：`<dump_dir>/_analysis_pointer.txt` 轻量指向 bug 目录结果（从原始数据侧核对时能反向找到结论）
@@ -390,5 +408,6 @@ RISC-V 工具链在 `idh.code/prebuilts/` 下（`riscv64-unknown-elf-addr2line.e
 - `references/uis8852-memory-map.md` — 内存区/别名、关键全局符号、结构体（osAssert_t/osException_t/rt_hw_stack_frame/osThread_t/osDlmalloc_t）
 - `references/riscv-exception-guide.md` — mcause/mdcause/mepc/mtval 解码、rt_hw_stack_frame 字段、abort 类型
 - `references/stack-unwind-guide.md` — 帧感知回溯方法、Zcm prologue 解析、启发式扫描陷阱
+- `references/cfi-unwind-guide.md` — DWARF `.debug_frame` CFI 确定性回溯（首选）、两条种子路径（异常帧 vs tcb.sp 切换帧）、API、局限
 - `references/heap-corruption-guide.md` — 堆物理遍历、dlmalloc chunk/bin 机制、耗尽 vs 损坏判定树、malloc trace ring
 - `references/bug-report-template.md` — UIS8852 dump 分析报告模板

@@ -54,6 +54,12 @@ SCRIPTS = [
     ("code_compare", "代码完整性（ELF .itcm/.iram2/.psram/.xip_text 段 vs dump）— EXCEPTION 必查",
      "code_compare.py",
      [r"结论：", r"INTACT", r"损坏 CORRUPTED", r"未加载 NOT LOADED"]),
+    ("unwind_cfi", "DWARF .debug_frame CFI 确定性回溯（比启发式干净；崩溃链 + 全任务逐线程链）",
+     "unwind_cfi.py",
+     [r"已索引.*FDE", r"归属线程", r"to_thread", r"栈溢出风险", r"各挂起线程"]),
+    ("assert_reason", "断言模式推理（scheduler 栈检查 → 精准判定溢出线程+根因链）",
+     "assert_reason.py",
+     [r"断言模式", r"栈溢出的线程", r"哨兵字节", r"结论（VERDICT）", r"根因在"]),
 ]
 
 
