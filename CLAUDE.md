@@ -28,6 +28,7 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 | `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（日志+知识库检索，怀疑内存泄漏时转交 spec-memory-leak-analyzer） |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 crash dump 分析（Cortex-R + ThreadX） |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 crash dump 分析（Cortex-M + FreeRTOS） |
+| `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 crash dump 分析（Unisoc Cortex-M3 + FreeRTOS） |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码） |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结 |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成 |
