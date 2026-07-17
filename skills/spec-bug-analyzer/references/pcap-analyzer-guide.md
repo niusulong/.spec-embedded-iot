@@ -9,6 +9,16 @@
 - **scapy**：`pip install scapy`（提供全协议栈分层解码，是本工具核心依赖）
 - 未安装时脚本会明确提示并退出，不会静默降级——降级到纯 stdlib 会丢失完整协议解码能力
 
+## 支持的文件格式
+
+脚本自动嗅探文件头选择加载方式，三种格式均无需用户指定：
+
+- **标准 pcap / pcapng**：scapy.rdpcap 直接读。
+- **文本格式报文 dump**：抓包工具（模块内置抓包 / 串口抓包 / QXDM 类）导出的 ASCII 报文——形如框线分隔 + `YYYY-MM-DD HH:MM:SS,mmm ETHER` 时间戳行 + `|偏移|hex|hex|` 数据行，或 Wireshark 的 `0000  xx xx ...` offset-hex。脚本把 hex 还原成字节、用 scapy 构造包对象，走**与标准 pcap 完全相同**的解码流程，`flows/show/around/search/decode` 全兼容。
+- **无法识别**：打印文件头(hex)与转换建议（`text2pcap`/`editcap`），不抛 traceback。
+
+> 即：拿到一个 `*.pcap` 但 `flows` 直接报 scapy 异常时，多半是文本 dump——本工具已能直接处理，不必手写 struct 解析。
+
 ## 子命令速查
 
 | 子命令 | 用途 | 关键参数 |
@@ -98,6 +108,26 @@ python scripts/pcap_analyzer.py show capture.pcap --flow-id 5
 # LWM2M 设备管理走 CoAP，报文层故障先看响应码
 ```
 
+### 8. 会话级时序分析（命令-响应卡在哪、延迟多久）
+
+定位"协议交互卡在某条命令、响应丢失/延迟"类问题（FTP / HTTP / MQTT / CoAP 登录或请求偶发超时）——不要逐包翻，按会话看时序：
+
+```bash
+# 1) flows 看所有会话，用"起止时间跨度"和"包数"挑异常会话：
+#    正常一次协议交互(握手+登录+请求)通常跨度小、包数稳定；跨度远超同类 = 卡在某步等响应
+python scripts/pcap_analyzer.py flows capture.pcap --port 10020
+
+# 2) 对异常会话 show 逐包，看命令(C→S)-响应(S→C)序列，定位卡在哪条命令(它发出后没有对应响应)
+python scripts/pcap_analyzer.py show capture.pcap --lport 19362
+
+# 3) 精确算"命令→响应"延迟：记下命令包与响应包时间戳相减；或用 around 锁定静默段前后
+python scripts/pcap_analyzer.py around capture.pcap --time 16:22:55.120 --window 30
+```
+
+**判读**：`show` 输出每包带时间戳与方向（C→S / S→C）。一条命令(C→S)后长时间无对应响应(S→C)即"卡点"；命令发出到响应到达的间隔即该步延迟。对比同类正常会话的同一步延迟，即可判定是偶发慢响应还是丢响应。
+
+> 实战教训：FTP 压测偶发 ERROR，`flows` 看出某会话跨度 51 秒（其余 ~2 秒），`show` 该会话发现 PASS 命令发出后 30 秒无 230 响应——模块超时返回 ERROR，而服务器 230 其实更晚才到（延迟响应）。靠"会话跨度异常 + 命令-响应间隔"两步定位，无需手写脚本。
+
 ## 协议解码深度
 
 | 层 | 解码内容 | 说明 |
@@ -139,6 +169,12 @@ TLS **加密的 ApplicationData 不可解**（无会话密钥，Wireshark 也需
 - ChangeCipherSpec
 - 记录层 ContentType（区分握手/告警/应用数据）
 
+### 5. Windows 环境注记（来自实战纠错）
+
+- **libpcap 未装告警**：脚本首行 `WARNING: No libpcap provider available ! pcap won't be used` 是 scapy 在无 libpcap C 库时**自动回退纯 Python reader** 的告警，**不影响解析**（标准 pcap 与文本 dump 都正常）。别被字面 "pcap won't be used" 误导成"脚本失效/格式不对"而去找格式问题。
+- **中文乱码**：脚本输出含中文列名（"协议/端点A/结局"），Windows GBK 终端下会乱码——数据本身正常。设 `PYTHONUTF8=1`（或 `PYTHONIOENCODING=utf-8`）可解；只取英文字段（IP/端口/时间/flags）时忽略即可。
+- **grep 把日志当二进制**：大日志含非 ASCII 字节时，`grep "ERROR"` 可能返回 `Binary file matches` 就停住、漏数据——加 `-a` 强制按文本处理。
+
 ## 能力边界（诚实声明）
 
 - ✅ 明文协议完整解码（HTTP/FTP/DNS/SMTP）
@@ -147,7 +183,7 @@ TLS **加密的 ApplicationData 不可解**（无会话密钥，Wireshark 也需
 - ✅ TCP 流交互重建 + 重传识别
 - ✅ TLS 握手层 + SNI + Alert（覆盖大多数 TLS 问题）
 - ⚠️ TLS 加密内容不可解（需 keylog，Wireshark 同样限制）——MQTT over TLS 同理
-- ⚠️ 不支持 .pcapng（本轮仅验证原始 .pcap）
+- ⚠️ pcapng / 文本 dump 依赖 scapy 版本与报文完整性，未做全面回归；遇解析异常优先怀疑这两类
 - ⚠️ scapy.contrib 对 MQTT 5.0 新增控制包（AUTH）和部分属性的解析可能不完整，核心控制包（CONNECT/CONNACK/PUBLISH）稳定
 - ✅ 对 IoT 模组常见报文类 bug（连接断开、握手失败、MQTT 连接、CoAP 响应异常、协议交互错误）覆盖率 > 90%
 

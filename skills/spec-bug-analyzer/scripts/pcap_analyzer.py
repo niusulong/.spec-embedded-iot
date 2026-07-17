@@ -24,6 +24,7 @@ pcap_analyzer.py — pcap 报文解析工具，供 AI 直接替代 Wireshark 完
 import sys
 import os
 import io
+import re
 import argparse
 from datetime import datetime, timezone, timedelta
 
@@ -94,6 +95,121 @@ def require_scapy():
         print("    安装命令: pip install scapy", file=sys.stderr)
         print("    scapy 提供全协议栈分层解码，是本工具的核心依赖。", file=sys.stderr)
         sys.exit(2)
+
+
+# ============ 报文加载（统一标准 pcap 与文本 dump） ============
+# 抓包工具(模块内置抓包/串口抓包/QXDM 类)常导出 ASCII 报文 dump 而非标准
+# pcap/pcapng 二进制；scapy.rdpcap 不认这类格式会直接抛异常。这里先嗅探格式，
+# 文本 dump 则把 hex 还原成字节、用 scapy 构造包，下游 flows/show/decode 零改动。
+
+# 文本时间戳：YYYY-MM-DD HH:MM:SS[,.]小数(1~6 位，ms 或 µs)；用 match 锚定行首
+_TEXT_TS_RE = re.compile(r'(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2}):(\d{2})[,.](\d{1,6})')
+_HEX_BYTE_RE = re.compile(r'[0-9a-fA-F]{2}')
+
+
+def _build_pkt_from_bytes(raw):
+    """按首字节选链路层构造 scapy 包，失败/无法识别返回 None。
+
+    IPv4(0x4?)→IP、IPv6(0x6?)→IPv6、其余按以太网帧(需 ≥14B 链路层头)，
+    避免把纯 IP dump 当 Ether 解析导致的静默错误。"""
+    try:
+        ver = raw[0] >> 4
+        if ver == 4:
+            return IP(raw)
+        if ver == 6:
+            return IPv6(raw)
+        if len(raw) >= 14:
+            return Ether(raw)
+    except Exception:
+        return None
+    return None
+
+
+def detect_format(path):
+    """嗅探报文文件格式：'pcap' | 'pcapng' | 'text' | 'unknown'"""
+    with open(path, 'rb') as f:
+        head = f.read(2048)
+    if len(head) < 4:
+        return 'unknown'
+    magic = head[:4]
+    # 标准 pcap（含微秒/反序变体）
+    if magic in (b'\xd4\xc3\xb2\xa1', b'\xa1\xb2\xc3\xd4',
+                 b'\x4d\x3c\xb2\xa1', b'\xa1\xb2\x3c\x4d'):
+        return 'pcap'
+    if magic == b'\x0a\x0d\x0d\x0a':  # pcapng
+        return 'pcapng'
+    # 文本 dump：框线/|hex| + 时间戳行
+    text = head.decode('latin-1', 'replace')
+    if re.search(r'\|\s*[0-9a-fA-F]{2}\s*\|', text) and _TEXT_TS_RE.search(text):
+        return 'text'
+    return 'unknown'
+
+
+def parse_text_dump(path):
+    """解析文本格式报文 dump，返回 scapy 包列表（已设置 pkt.time）。
+
+    支持框线分隔型（抓包工具常见）：
+        +---------+---------------+----------+
+        2026-07-16 16:12:10,313,000 ETHER       <- 时间戳须在行首、独占一行
+        |0   |00|00|..|45|00|..|               <- |偏移|hex|hex| 数据行
+        |0020 |xx|xx|..|                        <- 可选续行（带 4 位偏移段）
+    时间戳视为 CST(+8) 转 epoch float。每行 hex token 须完整 2 位，非法 token 被
+    跳过（注意：若数据列本身损坏，跳过会造成字节错位——本解析器假设 hex 列完整）。"""
+    require_scapy()  # 用 scapy 构造包对象
+    pkts = []
+    state = {'ts': None, 'hex': []}
+
+    def flush():
+        if state['ts'] is not None and state['hex']:
+            raw = bytes(int(h, 16) for h in state['hex'])  # token 是已校验的 hex 字符串
+            pkt = _build_pkt_from_bytes(raw)
+            if pkt is not None:
+                pkt.time = state['ts']
+                pkts.append(pkt)
+        state['ts'] = None
+        state['hex'] = []
+
+    with open(path, 'r', encoding='latin-1', errors='replace') as f:
+        for ln in f:
+            stripped = ln.strip()
+            m = _TEXT_TS_RE.match(stripped)  # 锚定行首：避免 payload 内含日期串误拆包
+            if m and not stripped.startswith('|'):  # 时间戳行 → 开新包
+                flush()
+                g = m.groups()
+                try:
+                    micros = int(g[4].ljust(6, '0'))  # 1~6 位小数补零到 µs
+                    dt = datetime(int(g[0][:4]), int(g[0][5:7]), int(g[0][8:10]),
+                                  int(g[1]), int(g[2]), int(g[3]), micros, tzinfo=TZ_CST)
+                    state['ts'] = dt.timestamp()
+                except ValueError:
+                    state['ts'] = None  # 脏时间戳（如 13 月/25 时）跳过，不中断整个文件
+            elif stripped.startswith('|'):           # |偏移|hex|hex| 数据行
+                for tok in stripped.split('|'):
+                    tok = tok.strip()
+                    if len(tok) == 2 and _HEX_BYTE_RE.fullmatch(tok):
+                        state['hex'].append(tok)
+            # 其余（框线 +---、空行、ASCII 预览）忽略
+        flush()
+    return pkts
+
+
+def load_packets(path):
+    """统一报文加载入口：自动识别标准 pcap/pcapng 与文本 dump；不识别时友好提示。
+
+    文本 dump 同样依赖 scapy 构造包对象，但绕过了 rdpcap 的格式校验。"""
+    fmt = detect_format(path)
+    if fmt in ('pcap', 'pcapng'):
+        require_scapy()
+        return rdpcap(path)
+    if fmt == 'text':
+        return parse_text_dump(path)
+    with open(path, 'rb') as f:
+        head = f.read(16)
+    print("[!] 无法识别的报文文件格式: %s" % path, file=sys.stderr)
+    print("    文件头(hex): %s" % ' '.join('%02x' % b for b in head), file=sys.stderr)
+    print("    支持: 标准 pcap/pcapng (scapy.rdpcap) 或文本报文 dump (|偏移|hex| 框线型)。", file=sys.stderr)
+    print("    若为其他格式，可先用 text2pcap / editcap 转成标准 pcap。", file=sys.stderr)
+    sys.exit(2)
 
 
 def fmt_ts(t, base=None):
@@ -633,8 +749,7 @@ def format_packet(idx, pkt, fl_key, show_hex=False):
 
 def cmd_flows(args):
     """列出所有流摘要"""
-    require_scapy()
-    pkts = rdpcap(args.input)
+    pkts = load_packets(args.input)
     flows = build_flows(pkts)
     if not flows:
         print("[!] 未找到 TCP/UDP 流")
@@ -666,8 +781,7 @@ def cmd_flows(args):
 
 def cmd_show(args):
     """展示指定流的逐包解码"""
-    require_scapy()
-    pkts = rdpcap(args.input)
+    pkts = load_packets(args.input)
     flows = build_flows(pkts)
     ordered = sorted(flows.values(), key=lambda f: f["start_t"] or 0)
 
@@ -686,8 +800,7 @@ def cmd_show(args):
 
 def cmd_around(args):
     """定位异常时刻前后的报文交互"""
-    require_scapy()
-    pkts = rdpcap(args.input)
+    pkts = load_packets(args.input)
     target = parse_time_arg(args.time)
     window = args.window
 
@@ -723,8 +836,7 @@ def cmd_around(args):
 
 def cmd_search(args):
     """跨所有包搜 payload"""
-    require_scapy()
-    pkts = rdpcap(args.input)
+    pkts = load_packets(args.input)
     keywords = [k.encode("ascii", errors="ignore") for k in args.keywords]
     found = 0
     for idx, pkt in enumerate(pkts):
@@ -760,8 +872,7 @@ def cmd_search(args):
 
 def cmd_decode(args):
     """单包深度解码"""
-    require_scapy()
-    pkts = rdpcap(args.input)
+    pkts = load_packets(args.input)
     if args.packet >= len(pkts):
         print(f"[!] 包序号 {args.packet} 超出范围（共 {len(pkts)} 包）")
         return
