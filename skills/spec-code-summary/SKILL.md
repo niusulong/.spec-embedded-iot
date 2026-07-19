@@ -126,7 +126,7 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 - §8 字段值可 grep：抽查 2-3 个关键字能否用 `Grep` 在源码里命中。
 - **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-solution-designer 等后续技能能按语义检索到本总结（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
   ```bash
-  python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection code-summary
+  python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection code-summary
   ```
   （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
   - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。

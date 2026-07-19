@@ -25,20 +25,23 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 
 | 技能 | 触发词 | 说明 |
 |------|--------|------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（日志+知识库检索，怀疑内存泄漏时转交 spec-memory-leak-analyzer） |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（日志+知识库检索，内置 pcap 报文解析；怀疑内存泄漏时转交 spec-memory-leak-analyzer） |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 crash dump 分析（Cortex-R + ThreadX） |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 crash dump 分析（Cortex-M + FreeRTOS） |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 crash dump 分析（Unisoc Cortex-M3 + FreeRTOS） |
+| `spec-uis8850-dump-analyzer` | UIS8850 死机、N706-STD 崩溃、AP PANIC、gBlueScreenRegs、osiPanic | UIS8850/N706-STD 平台 crash dump 分析（Unisoc Cortex-R + FreeRTOS） |
+| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常、g_osIrqNo | UIS8852/N706C 平台 crash dump 分析（Unisoc RISC-V + RT-Thread） |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码） |
-| `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结 |
+| `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结（含 §8 关键字检索清单） |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成 |
-| `spec-init` | spec 初始化、spec 准备环境 | .spec 工作流环境初始化 |
+| `spec-init` | spec 初始化、spec 准备环境 | .spec 工作流环境初始化；自动拉取/更新跨项目知识库 |
 | `spec-knowledge-archiver` | 归档bug、同步知识库、archive bug | 文档归档到持久化知识库 |
 | `spec-neoway-coding-standards` | spec 编码规范、spec 代码规范 | Neoway C 编码规范查询 |
 | `spec-requirement-generator` | spec 整理需求、spec 生成需求文档 | 零散需求 → 结构化需求文档 |
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求拆分为小单元 |
 | `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案、技术选型 | 需求 → 嵌入式技术方案（架构/RTOS任务/资源预算/协议栈兼容/接口/风险） |
 | `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 委托 superpowers:writing-plans 产出代码级可执行计划（编码规范合规 + spec 路径 + 去 TDD 改嵌入式验证） |
+| `spec-using-agents` | （会话启动时自动加载） | 元技能：所有技能入口与使用规则、知识库访问、平台工具映射（Codex/OpenCode） |
 | `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
 | `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet 加密文件透明读写（仅 Windows） |
 
