@@ -72,6 +72,76 @@ static void do_check_chunk(osDlmalloc_t *heap, mchunkptr p) {
 
 > **关键**：路径 1/2（`dlmallocPrint`）在**堆耗尽**时触发，遍历中若撞见链表异常也会报 539。**不要一见 539 就断定独立 corruption**——先看堆使用率（耗尽也会触发 539）。
 
+## OS_MEM_TRACE 与 dlmalloc.c:2066（check_mem_trace）— double-free 高发点
+
+UIS8852 在 dlmalloc 之上加了 **OS_MEM_TRACE** 机制：每个 `osMalloc` 块在用户区前后加 trace 头/尾并带 magic 校验。`free()` 走 `osFreeTrace`（dlmalloc.c:2052），先 `check_mem_trace` 校验头尾 magic，再 `dlFree`。**dlmalloc.c:2066 是本平台高频死机点，且 double-free 的典型表现就在这里——极易被误判为"越界写堆损坏"。**
+
+### osMemTrace_t 结构（os_ext.h:47-54）
+
+```c
+typedef struct {
+    uint32_t   user;    // +0:  osGetCurContext()（任务上下文，非 ra）
+    size_t     size;    // +4:  分配请求大小
+    const char *file;   // +8:  分配点文件
+    uint16_t   line;    // +12: 行号
+    uint16_t   magic;   // +14: 0x1212 (OS_MEM_TRACE_MAGIC_UP)
+} osMemTrace_t;         // 16 字节，位于用户指针前方
+```
+
+块布局：`[dlmalloc prev_size 4][size 4][osMemTrace_t 16][用户数据...][down magic 0x89 0x89]`
+
+- `set_mem_trace`（分配时，dlmalloc.c:713）：写 `user/size/file/line/magic=0x1212`，尾部写 `0x89 0x89`
+- `check_mem_trace`（释放时，dlmalloc.c:726）：3 个 assert
+  - `magic == 0x1212`（头部，"mem upflow?"）
+  - `*down == 0x89`（尾部第 1 字节，"mem downflow?"）
+  - `*(down+1) == 0x89`（尾部第 2 字节）
+  - **down 位置 = `trace + trace.size + 16`**（用 trace.size 算）
+
+### 🔴 关键机制：dlfree 不清除 magic —— "magic 合法 ≠ 块在用"
+
+源码 grep 确认：**释放路径从不写 `trace.magic`/`file`/`line`**（只有 `set_mem_trace` 写、`check_mem_trace` 读）。`dlFree` 只在 `chunk+8`/`chunk+12` 写 `fd`/`bk`，不动 `+14`(magic)/`+8`(file)/`+12`(line)。
+
+后果：**一个已释放（FREE）的块，`trace.magic` 仍是 0x1212（合法）、`file`/`line` 仍是陈旧合法值**。
+
+> 🔴 **致命陷阱**：`check_mem_trace` 头部 magic 通过 → **绝不能据此排除 double-free**！double-free 第二次释放时头部 magic 照样通过。真实案例（FTPS 透传上传死机，7052653202）正是栽在这里：据"magic=0x1212 合法"排除 double-free，把已释放块的 fd/bk 误读为"被越界写篡改的 trace.size"，误判为越界写堆损坏。
+
+### dlmalloc.c:2066 downflow 断言的两种根因
+
+`osFreeTrace` 用 `trace.size` 算 down 位置（`down = trace + trace.size + 16`）。若 `trace.size` 字段不再是原值，down 位置算飞，读到非 0x89 字节 → downflow 断言。`trace.size` 变值有两个来源：
+
+| 受害块状态 | trace.size 变值的原因 | 根因 |
+|-----------|---------------------|------|
+| **FREE**（已被释放过一次） | 第一次 free 时 dlmalloc 把 **fd/bk 写入 chunk+8/+12**，正好覆盖 `trace.user`(+0)/`trace.size`(+4)，fd/bk = bin 头地址（如 `0x10368`，被当成 size=66408） | **double-free**（释放后指针未置空，再次释放） |
+| **INUSE**（在用） | 越界写踩坏了 trace 头的 size 字段 | 堆内存越界写 |
+
+**区分两者唯一可靠方法：查受害块是在用还是 FREE**（见下）。**不要只看 magic。**
+
+### 判块在用/空闲的权威方法（解读 osMemTrace_t 前必做）
+
+1. **下一块的 PREV_INUSE 位**：受害块 chunk @P、size=S；下一块 @P+S，其 size 字段 @P+S+4 的 **bit0 (PREV_INUSE)**：`=0` → 受害块 **FREE**；`=1` → 受害块 INUSE。这是 dlmalloc 的权威标志。
+2. **空闲链表双向回指**：若受害块 FREE，其 fd/bk（chunk+8/+12）应指向 DTCM bin 头（`0x10008~0x10400`），且 bin 头的 fd/bk（在 DTCM `00010000.bin`）回指受害块。这是"唯一成员"空闲链表标准形态，不可能由越界写巧合产生。
+3. **信 `heap_walker.py` 的判定**：它已用 PREV_INUSE 正确判 inuse/free。**不要用手动字节解读推翻它**。
+
+### double-free 完整识别流程（dlmalloc.c:2066 场景）
+
+```
+g_osErrorLog 含 "dlmalloc.c, Line: 2066" (osFreeTrace/check_mem_trace downflow)
+│
+├── 1. 取被 free 的指针 ptr（g_osAssert、栈寄存器、或调用链 free(ptr) 的参数）
+├── 2. 查 ptr 所在块状态（下一块 PREV_INUSE + 空闲链表回指）：
+│   ├── 下一块 PREV_INUSE=0 + 空闲链表回指  →  受害块已 FREE
+│   │   └── ★ 根因 = double-free（可用 scripts/double_free_detect.py 自动判定）
+│   │       • 头部 magic 通过（dlfree 不清 magic，陈旧合法值）
+│   │       • trace.size 字段 = 第一次 free 写入的 bk 指针（指向 bin 头，值很大）
+│   │       • down = trace + bk值 + 16（算飞）→ 读到非 0x89 → 断言
+│   │       • 排查：free 后未置空的指针 + 重复释放路径（如对象重复析构）
+│   └── 下一块 PREV_INUSE=1（INUSE）+ trace.size 异常
+│       └── 根因 = 越界写踩坏 trace 头
+│           • 排查：guard bytes / 分配器加 CRC 定位越界源
+```
+
+> 真实案例数据（7052653202）：受害 read_buf 块 @0x801b7918，下一块 @0x801b9c54 的 size+flags=`0x00000028`（PREV_INUSE=0 → FREE）；chunk fd/bk=`0x10368`（指向 bin 头），DTCM @0x10370 回指 `0x801b7918`；`trace.size`(@+4)=`0x10368` 被当 size 算出 down=0x801c7c98，读到 0xd4≠0x89 断言。根因：`~nwy_socket_base` 析构 `free(read_buf)` 后未置空 + 对象被重复析构。
+
 ## 耗尽 vs 损坏 判定树
 
 ```
@@ -85,7 +155,10 @@ static void do_check_chunk(osDlmalloc_t *heap, mchunkptr p) {
 │       └── 物理完整 + 某 free chunk fd/bk 指向非法  →  free-list 链接损坏
 │
 └── used/total 正常  →  非耗尽，查损坏来源
-    └── 物理遍历定位破坏点 → 越界写 / use-after-free
+    ├── 物理遍历定位破坏点 → 越界写 / use-after-free
+    └── g_osErrorLog 含 dlmalloc.c:2066 (check_mem_trace downflow) → 先查受害块状态（见上节）：
+        ├── 受害块 FREE（下一块 PREV_INUSE=0 + 空闲链表回指）→ ★ double-free（free 后未置空）
+        └── 受害块 INUSE + trace.size 异常 → 越界写踩坏 trace 头
 ```
 
 ### 堆物理遍历算法（`heap_walker.py`）
@@ -141,3 +214,6 @@ while p < heap->base + heap->total:
 | 某个 chunk size 异常 | 越界写（相邻 chunk header 被覆盖） |
 | dlmalloc.c:1138 + top<64B | 纯耗尽（top 不足分支） |
 | dlmalloc.c:539 + 堆正常 | 独立 free-list 损坏（查 UAF） |
+| **dlmalloc.c:2066 downflow + 受害块 FREE** | **double-free**（free 后未置空；trace.size 被第一次 free 的 fd/bk 覆盖成 bin 头地址；查重复释放路径，如对象重复析构） |
+| dlmalloc.c:2066 downflow + 受害块 INUSE + trace.size 异常 | 越界写踩坏 trace 头（guard bytes / osMemTrace_t 加 CRC 定位） |
+| ⚠ 只看 `trace.magic=0x1212` 合法 | **不能**据此判块在用 / **不能**据此排除 double-free（dlfree 不清 magic，已释放块 magic 仍合法） |

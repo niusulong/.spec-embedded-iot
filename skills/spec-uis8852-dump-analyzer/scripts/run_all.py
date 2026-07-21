@@ -60,6 +60,9 @@ SCRIPTS = [
     ("assert_reason", "断言模式推理（scheduler 栈检查 → 精准判定溢出线程+根因链）",
      "assert_reason.py",
      [r"断言模式", r"栈溢出的线程", r"哨兵字节", r"结论（VERDICT）", r"根因在"]),
+    ("double_free_detect", "double-free 自动判定（dlmalloc.c:2066 downflow）：取被 free 指针，查块状态（下一块 PREV_INUSE + 空闲链表回指），区分 double-free vs 越界写；非 2066 场景自动跳过",
+     "double_free_detect.py",
+     [r"VERDICT", r"DOUBLE-FREE", r"HEAP OVERFLOW", r"PREV_INUSE\(bit0\)", r"受害块 .*FREE|受害块 .*INUSE"]),
 ]
 
 

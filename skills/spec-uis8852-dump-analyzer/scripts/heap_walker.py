@@ -27,6 +27,13 @@ except Exception:
 
 DUMP = sys.argv[1] if len(sys.argv) > 1 else "."
 ELF = sys.argv[2] if len(sys.argv) > 2 else "8852_cat1bis_op_mdl_4M.elf"
+# Optional: --victim-ptr 0xPTR  (spotlight a freed pointer's block for double-free triage)
+VICTIM_PTR = None
+for _i, _a in enumerate(sys.argv[3:], start=3):
+    if _a.startswith("--victim-ptr="):
+        VICTIM_PTR = int(_a.split("=", 1)[1], 0)
+    elif _a == "--victim-ptr" and _i + 1 < len(sys.argv):
+        VICTIM_PTR = int(sys.argv[_i + 1], 0)
 
 PREV_INUSE = 0x1
 IS_MMAPPED = 0x2
@@ -198,6 +205,32 @@ def main():
             print("    bin@0x%08x fd=0x%08x bk=0x%08x" % (a, fd, bk))
         if top:
             print("  (bin[0].fd @0x%08x = top chunk 0x%08x)" % (av_base + 8, top[0]))
+
+    # ---- victim pointer spotlight (double-free triage for dlmalloc.c:2066) ----
+    if VICTIM_PTR:
+        print("\n" + "=" * 92)
+        print(" 受害指针 spotlight（dlmalloc.c:2066 double-free 排查）: ptr = 0x%08x" % VICTIM_PTR)
+        print("=" * 92)
+        vc = None
+        for (p, sz, flags, inuse, fd, bk) in chunks:
+            if p <= VICTIM_PTR < p + sz:
+                vc = (p, sz, flags, inuse, fd, bk); break
+        if vc is None:
+            print("  ptr 不在堆任何 chunk 内（非堆指针 / 已被合并到更大空闲块）")
+        else:
+            p, sz, flags, inuse, fd, bk = vc
+            np = p + sz
+            nraw = mem.try_u32(np + 4)
+            pi = (nraw & 1) if nraw is not None else -1
+            print("  所在 chunk @0x%08x  size=0x%x(%d)  inuse=%s" % (p, sz, sz, inuse))
+            print("  inuse 判据：下一块 @0x%08x size+flags=0x%08x PREV_INUSE=%d" % (np, nraw or 0, pi))
+            if not inuse:
+                print("  ★ 该块已 FREE —— 若 ptr 正被 free()/osFreeTrace 释放，高度怀疑 DOUBLE-FREE")
+                print("    （trace.size 已被第一次 free 的 fd/bk 覆盖成 bin 头地址；")
+                print("     trace.magic 合法是因 dlfree 不清 magic —— 不能据 magic 排除 double-free）")
+                print("    => 权威判定: python double_free_detect.py <dump> <elf> --ptr 0x%08x" % VICTIM_PTR)
+            else:
+                print("  该块 INUSE —— 若此处 2066 downflow 断言，疑为越界写踩坏 osMemTrace_t 头")
 
 
 if __name__ == "__main__":
