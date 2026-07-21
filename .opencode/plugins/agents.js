@@ -57,7 +57,7 @@ export const AgentsPlugin = async ({ client, directory }) => {
   const getBootstrapContent = () => {
     if (_bootstrapCache !== undefined) return _bootstrapCache;
 
-    const skillPath = path.join(skillsDir, 'using-agents', 'SKILL.md');
+    const skillPath = path.join(skillsDir, 'spec-using-agents', 'SKILL.md');
     if (!fs.existsSync(skillPath)) {
       _bootstrapCache = null;
       return null;
@@ -70,14 +70,14 @@ export const AgentsPlugin = async ({ client, directory }) => {
 When skills reference tools you don't have, substitute OpenCode equivalents:
 - \`Skill\` tool → OpenCode's native \`skill\` tool
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
-- Knowledge base search → run: \`python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_search.py "query"\`
+- Knowledge base search → run: \`python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_search.py "query"\`
 
 Use OpenCode's native \`skill\` tool to list and load skills.`;
 
     _bootstrapCache = `<EXTREMELY_IMPORTANT>
 You have access to embedded IoT development skills and a persistent knowledge base.
 
-**IMPORTANT: The using-agents skill content is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load "using-agents" again - that would be redundant.**
+**IMPORTANT: The spec-using-agents skill content is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load "spec-using-agents" again - that would be redundant.**
 
 ${content}
 

@@ -10,7 +10,7 @@ Add agents to the `plugin` array in your `opencode.json` (global or project-leve
 
 ```json
 {
-  "plugin": ["agents@git+https://github.com/niusulong/agents.git"]
+  "plugin": ["agents@git+https://github.com/niusulong/.spec-embedded-iot.git"]
 }
 ```
 
@@ -33,7 +33,7 @@ When skills reference Claude Code tools:
 - `Skill` tool → OpenCode's native `skill` tool
 - `Read`, `Write`, `Edit` → your native file tools
 - `Bash` → your native shell tools
-- Knowledge base search → `python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_search.py "query"`
+- Knowledge base search → `python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_search.py "query"`
 
 ## Troubleshooting
 

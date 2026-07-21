@@ -41,13 +41,16 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug root-cause analysis with knowledge base retrieval |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug root-cause analysis with knowledge base retrieval + pcap parsing |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump | ASR platform crash dump analysis (Cortex-R + ThreadX) |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃 | EC platform crash dump analysis (Cortex-M + FreeRTOS) |
+| `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D crash dump analysis (Unisoc Cortex-M3 + FreeRTOS) |
+| `spec-uis8850-dump-analyzer` | UIS8850 死机、N706-STD 崩溃、AP PANIC、gBlueScreenRegs | UIS8850/N706-STD crash dump analysis (Unisoc Cortex-R + FreeRTOS) |
+| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常 | UIS8852/N706C crash dump analysis (Unisoc RISC-V + RT-Thread) |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、memory leak | Memory leak localization (call-stack tracking) |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | Single module code implementation analysis |
 | `spec-project-overview` | spec 项目概览 | Project overview document generation |
-| `spec-init` | spec 初始化 | .spec workflow environment initialization |
+| `spec-init` | spec 初始化 | .spec workflow environment initialization; auto-clone/pull knowledge base |
 | `spec-knowledge-archiver` | 归档bug、同步知识库 | Archive documents to persistent knowledge base |
 | `spec-neoway-coding-standards` | spec 编码规范 | Neoway C coding standards reference |
 | `spec-requirement-generator` | spec 整理需求 | Transform loose requirements into structured docs |

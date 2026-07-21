@@ -104,7 +104,7 @@ Glob(pattern="**/*.mk",            path=<project_path>)
 - 模板 9 个章节齐全；识别不到的章节要明确写出"未识别到，原因…"，**不要留空更不要编造**。
 - **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-code-summary 等后续技能能按语义检索到本概览（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
   ```bash
-  python ~/.agents/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection project-overview
+  python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection project-overview
   ```
   （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
   - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。
