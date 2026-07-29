@@ -27,7 +27,7 @@ author: niusulong
 
 ## 平台识别
 
-平台决定知识库检索范围（向量检索 `--platform`）与 crash dump 的分派目标，分析开始前先识别当前平台。
+平台决定知识库检索范围（INDEX.md 平台分组）与 crash dump 的分派目标，分析开始前先识别当前平台。
 
 ### 权威来源：当前 git 仓库名
 
@@ -42,13 +42,13 @@ git rev-parse --abbrev-ref HEAD
 
 ### 1. 确定检索平台（知识库 `--platform`）
 
-将仓库名映射到知识库 `~/.spec-embedded-iot/knowledge/platform/` 下已有的平台目录。**先列目录**确认可选项：
+将仓库名映射到知识库 `~/.spec-embedded-iot/knowledge/raw/platform/` 下已有的平台目录。**先列目录**确认可选项：
 
 ```bash
-ls ~/.spec-embedded-iot/knowledge/platform/
+ls ~/.spec-embedded-iot/knowledge/raw/platform/
 ```
 
-> **强制校验**：映射得到的平台名必须在上面 `ls` 的输出里**精确匹配**一个目录。不匹配（如仓库名含 `ASR` 映射出 `ASR`、但实际目录是 `ASR1603`）时，以实际目录为准重判，**不得带着错误平台名进入后续检索**——否则 `--platform` 过滤会漏掉全部文档。
+> **强制校验**：映射得到的平台名必须在上面 `ls` 的输出里**精确匹配**一个目录。不匹配（如仓库名含 `ASR` 映射出 `ASR`、但实际目录是 `ASR1603`）时，以实际目录为准重判，**不得带着错误平台名进入后续检索**——否则 INDEX.md 平台分组定位会出错。
 
 | 仓库名（大小写不敏感） | 平台名（`--platform`） | 架构/系统 |
 |----------------------|----------------------|-----------|
@@ -86,7 +86,7 @@ ls ~/.spec-embedded-iot/knowledge/platform/
 1. **识别相关模块**：从问题描述、AT 命令前缀（`+COAP`/`+MQTT`/`+HTTPCI`…）、日志里的任务名 / 模块 ID 推断涉及哪个模块。
 2. **直读代码总结 §8**（优先直读文件，免走向量检索）。先看本平台已总结哪些模块：
    ```bash
-   ls ~/.spec-embedded-iot/knowledge/platform/{平台}/code-summary/
+   ls ~/.spec-embedded-iot/knowledge/raw/platform/{平台}/code-summary/
    ```
    命中即 Read `…/code-summary/{模块名}/代码总结.md` 的 **§8 关键日志检索字段**，按下表取用：
 
@@ -97,7 +97,7 @@ ls ~/.spec-embedded-iot/knowledge/platform/
    | §8.2 错误码 | **现查含义，免读源码**——最大提效点 |
    | §8.4 URC/AT 回复 | 对照 AT 命令时序 |
    > 每条字段的「默认可见性」要尊重：grep/检索默认不输出的串（如 `P_DEBUG`）会落空，别误判为"模块无日志"。§8.0 只列默认可见项，非默认可见项若需要再去 §8.1–§8.6 查。
-3. **无现成总结时**：可 `python …/embed_search.py "{模块+日志}" --collection code-summary --platform {平台} --top 3` 语义找相关模块；或直接用 `references/analysis-patterns.md` 的通用关键字进入下方盲分析。
+3. **无现成总结时**：直接用 `references/analysis-patterns.md` 的通用关键字进入下方盲分析，或在 wiki/INDEX.md 里找类似模块的 case 借鉴其 §8 字段定义。
 
 > 取到的字段字典贯穿后续 Step 2 日志分析、Step 4 根因定位、Step 5 代码交叉验证——错误码 / 状态值的含义不再依赖临时翻码。
 
@@ -191,9 +191,9 @@ ls ~/.spec-embedded-iot/knowledge/platform/
 - 输出路径：`.spec/bug/{工作项ID}_{问题描述}/Bug分析.md`
 - 使用模板：`references/bug-report-template.md`
 
-**Section 0 结构化摘要（必填）**：工作项 ID、平台、当前分支、模块、问题分类、症状关键词、根因概述、调用链摘要、检索关键词。此摘要是知识库检索的数据来源，归档时由脚本自动提取。**工作项 ID 必填**，归档后保留在知识库 index.md、归档元数据、向量索引及检索结果中，用于缺陷单号追溯。**当前分支**取自「平台识别」中的 `git rev-parse --abbrev-ref HEAD`（如 `master`、`feature/ipv6-fix`），用于追溯分析时的代码基线，缺失时填 `unknown`。
+**Section 0 结构化摘要（必填）**：工作项 ID、平台、当前分支、模块、问题分类、症状关键词、根因概述、调用链摘要、检索关键词。此摘要是知识库归档后生成 wiki/entries/ 精炼页的数据来源。**工作项 ID 必填**，归档后保留在 wiki/INDEX.md、`.archive_meta.json`、精炼页文件名中，用于缺陷单号追溯。**当前分支**取自「平台识别」中的 `git rev-parse --abbrev-ref HEAD`（如 `master`、`feature/ipv6-fix`），用于追溯分析时的代码基线，缺失时填 `unknown`。
 
-**平台字段精确性（强制）**：平台字段必须**精确等于**「平台识别」表中的平台名（如 `ASR1603`、`EC626`），**禁止带任何后缀/架构/括号**（错误示例：`ASR1603（Cortex-R + ThreadX）`）。带后缀会破坏归档后 `--platform` 向量过滤，导致检索漏文档。
+**平台字段精确性（强制）**：平台字段必须**精确等于**「平台识别」表中的平台名（如 `ASR1603`、`EC626`），**禁止带任何后缀/架构/括号**（错误示例：`ASR1603（Cortex-R + ThreadX）`）。带后缀会让归档后精炼页文件名的前缀（如 `ASR1603_xxx.md`）与 INDEX.md 平台分组错位，导致检索漏文档。
 
 **问题复现路径（必输出）**：找到根因后必须给出复现路径——前置条件、必要状态、操作步骤、验证方法。概率性问题额外标注复现概率和触发频率。证据不足以推导完整路径时，输出已知条件和推测路径并标注"待验证"。
 
@@ -223,26 +223,54 @@ mv .spec/logs/{相关日志文件} ".spec/bug/{工作项ID}_{问题描述}/logs/
 
 无匹配时：告知知识库无相关案例，建议用完整分析流程（spec 分析bug）诊断。
 
-## 知识库检索方法
+## 知识库检索方法（LLM-Wiki 三段渐进加载）
 
-Step 6 与手动查询模式共用本方法。
+Step 6 与手动查询模式共用本方法。**不使用向量检索**，改为 agent 直接读 markdown 三层渐进加载。设计纲领见 `~/.spec-embedded-iot/knowledge/schema.md`。
 
-1. **确定平台**：按上方「平台识别」取当前 git 仓库名对应的平台目录名（如 `EC626`、`ASR1603`、`N58`、`UIS8850`、`UIS8852`）。
-2. **向量语义检索**：
-   ```bash
-   python ../spec-knowledge-archiver/scripts/embed_search.py "{症状关键词 + 模块名}" --platform {当前平台} --top 5 --json
-   ```
-   能匹配语义相似但字面不同的案例（如"内存泄漏"匹配"memp 池耗尽"）。路径相对于本技能目录，`spec-knowledge-archiver` 是同插件兄弟技能。
-3. **平台扩展**：当前平台无高匹配时，去掉 `--platform` 或换平台再搜。
-4. **评估匹配度**：相似度 > 0.7 高相关；0.5–0.7 中相关。
-5. **结果处理**：
-   - 高相关 → Read 加载全文，注入 Step 4 分析上下文
-   - 中相关 → 展示摘要（模块/症状/根因方向）供参考
-   - 无匹配 → 正常继续分析
+### 第一层（轻）：读全局索引锁定候选
 
-**排序**：当前平台 & 高匹配 > 当前平台 & 中匹配 > 其他平台 & 高匹配 > 其他平台 & 中匹配。
+```bash
+# 读 wiki 入口的 INDEX.md（一行一条，按平台分组）
+cat ~/.spec-embedded-iot/knowledge/wiki/INDEX.md
+```
 
-**知识库不存在时**：路径不存在或 index.md 为空 → 跳过检索，不影响后续分析。
+INDEX.md 是 LLM 维护的轻量目录，每条占用一行（WID + 标题 + 模块 + 类型 + 一句话根因 + 精炼页链接），按平台分组。读完后用关键词/语义锁定 2-3 个候选条目。
+
+底部还有「跨案例概念」表格，列出跨平台综合页（如 MQTT连接失败、栈溢出与heap_corruption）。若用户问题属于"某一类问题"（非具体单点），优先从概念页切入。
+
+### 第二层（中）：读候选的精炼页确认相关性
+
+锁定候选后，Read 对应的 entries 精炼页（不要直接读 raw 原文）：
+
+```
+~/.spec-embedded-iot/knowledge/wiki/entries/bug-solutions/{平台}_{wid}_{desc}.md
+```
+
+精炼页含：一句话根因 / 调用链摘要 / 关键证据（指向原文的链接）/ 修复方案链接 / 相关概念。读完决定是否需要看原文细节。
+
+### 第三层（重）：按需读 raw 原文取证
+
+精炼页指向的原文（`raw/platform/{平台}/bug-solutions/{wid}_{desc}/Bug分析.md` 等）只在需要详细证据时按需读取，不要全量加载。
+
+### 跨案例综合（可选）：概念页横向跳转
+
+```bash
+ls ~/.spec-embedded-iot/knowledge/wiki/concepts/
+```
+
+概念页（`wiki/concepts/{概念名}.md`）综合 ≥2 个案例的共性根因模式（如「MQTT 连接失败的 4 种根因」「FTP 大文件死机的 4 类」），列出所有相关案例的 wikilink。**查"某一类问题"时必读**。
+
+### 评估与结果处理
+
+- **高相关**（精炼页根因与当前现象一致）→ Read 加载精炼页全文 + 必要时读 raw 原文，注入 Step 4 分析上下文，明确标注「参考历史案例：[案例标题]」
+- **中相关**（同类模块但根因不同）→ 展示精炼页摘要供参考，对比差异
+- **无匹配** → 告知用户「知识库无相关案例」，继续 Step 7 结论 / 触发熔断
+
+**平台扩展**：当前平台无匹配时，去 INDEX.md 的其他平台分组看，或直接搜概念页（概念页天然跨平台）。
+
+**知识库不存在时**：`~/.spec-embedded-iot/knowledge/wiki/INDEX.md` 不存在或为空 → 跳过检索，不影响后续分析。
+
+**检索质量参考**：实测 53 案例规模，Success@5 = 100%（每条查询的 top-5 候选必含至少 1 个相关条目）、MRR = 0.97。规模超过 ~200 案例、INDEX.md 超过 ~300 行时再考虑加索引/graph 后端。
 
 ## 参考文档
 

@@ -48,7 +48,7 @@ fi
   `git clone https://github.com/niusulong/knowledge.git ~/.spec-embedded-iot/knowledge`（首次）或
   `git -C ~/.spec-embedded-iot/knowledge pull`（更新）。
 - **`git pull --ff-only` 失败时降级**：知识库存在本地改动或与远程分叉导致无法快进时，不自动 merge/rebase（避免污染用户本地状态），仅告警提示用户手动处理（如 `git stash` 后再 pull）。
-- 知识库内的 `vector_db/`（向量索引）是生成产物，**不入 git**，克隆后为空。首次使用语义检索前需手动构建：`python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_indexer.py build`（需下载约 450MB 嵌入模型）。
+- 知识库的 `wiki/` 由 `kb.py` 维护（`kb.py wiki guide` 查看维护指引），检索靠 agent 渐进加载（读 `wiki/INDEX.md` → `entries/` → `raw/`），无向量库无需构建。
 
 > 路径边界：`~/.spec-embedded-iot/` 是插件根目录（skills/hooks 等都在此），通常已随插件安装存在；本步真正检查并按需拉取的是它下面的 `knowledge/` 子目录。
 
@@ -68,9 +68,11 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
 
 **中央知识库**（跨项目持久化，独立于代码仓库）：
 ```
-~/.spec-embedded-iot/knowledge/platform/{平台名}/
-  ├── 项目概览.md                        -- 由 spec-project-overview 生成
-  └── code-summary/{模块名}/代码总结.md   -- 由 spec-code-summary 生成
+~/.spec-embedded-iot/knowledge/
+├── raw/platform/{平台名}/               -- 原文保真（归档/生成产物）
+│   ├── 项目概览.md                      -- 由 spec-project-overview 生成
+│   └── code-summary/{模块名}/代码总结.md -- 由 spec-code-summary 生成
+└── wiki/                                -- 全局 wiki（INDEX.md + entries/ + concepts/，渐进加载入口）
 ```
 
 **项目功能目录**（由各技能按需创建，不在此预创建）：
@@ -97,9 +99,10 @@ New-Item -ItemType Directory -Force -Path ".spec/logs" | Out-Null
   └── bug/           (Bug 分析报告，按需创建)
 
 中央知识库（跨项目持久化，独立 git 仓库）：
-  ~/.spec-embedded-iot/knowledge/platform/{平台名}/
+  ~/.spec-embedded-iot/knowledge/raw/platform/{平台名}/
   ├── 项目概览.md
   └── code-summary/  (模块代码总结，按需创建)
+  全局 wiki: knowledge/wiki/ (INDEX.md + entries/，渐进加载入口)
   状态：<已是最新 / 本次克隆成功 / 更新到最新 / 失败，需手动执行: git -C ~/.spec-embedded-iot/knowledge pull>
 
 项目功能目录（如 .spec/requirement/6974423486_MQTT_SSL双向认证/）和 Bug 目录（如 .spec/bug/6974423486_UDP链路未关闭/）由各技能按需创建。

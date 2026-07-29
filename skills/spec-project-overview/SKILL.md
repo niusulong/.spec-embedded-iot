@@ -99,17 +99,11 @@ Glob(pattern="**/*.mk",            path=<project_path>)
 - 目录树限 2-3 层，排除第 3 步列出的目录。
 - "模块清单"和"建议深入分析的功能域"必须落到真实存在的目录，并在"后续分析建议"里把 spec-code-summary 作为推荐工具。
 
-### 6. 完整性检查 + 自动纳入向量索引
+### 6. 完整性检查
 
 - 模板 9 个章节齐全；识别不到的章节要明确写出"未识别到，原因…"，**不要留空更不要编造**。
-- **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-code-summary 等后续技能能按语义检索到本概览（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
-  ```bash
-  python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection project-overview
-  ```
-  （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
-  - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。
-  - **失败**（脚本异常 / Python 缺失 / 首次需下载约 450MB 嵌入模型）：**不中止**——文档已落盘、按路径引用不受影响，索引只是检索增强。给一句警告，并提示可稍后手动跑 `spec-knowledge-archiver` 补救。
-  - **跳过**：若用户本次明确说"先不索引 / 跳过索引"，则跳过本步。
+
+> 说明：知识库检索已改为 LLM-Wiki 渐进加载（agent 读 `wiki/INDEX.md` → `entries/` → `raw/`），不再有向量索引构建步骤。本概览落盘到 `knowledge/raw/platform/{平台}/项目概览.md` 后，由 `kb.py` 维护 wiki 条目；如需补充 wiki，运行 `python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py wiki guide` 查看维护指引。
 
 ## 加密文件提示
 

@@ -17,9 +17,12 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import common
-from common import chunk_markdown, build_summary_text, _deep_merge, _validate_config, safe_filename
+from common import (
+    chunk_markdown, build_summary_text, _deep_merge, _validate_config, safe_filename,
+    extract_title, extract_work_item_id,
+)
 from extract_summary import _parse_table_rows, DEFAULT_FIELD_MAP, DEFAULT_LIST_FIELDS
-from knowledge_archiver import ensure_summary_field_row, extract_title, extract_work_item_id
+from knowledge_archiver import ensure_summary_field_row
 
 
 class TestChunkMarkdown(unittest.TestCase):

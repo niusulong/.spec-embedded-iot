@@ -10,7 +10,7 @@ This plugin provides specialized skills for embedded software development on Neo
 - **Crash Dump Analysis** — Multi-platform: ARM Cortex-R (ASR1603/UIS8850), Cortex-M (EC626/QCX216), RISC-V (UIS8852)
 - **Memory Leak Analysis** — call-stack tracking with MAP→source mapping
 - **Code Summarization** — Module-level code implementation analysis
-- **Knowledge Base** — Persistent cross-project knowledge with vector semantic search
+- **Knowledge Base** — Persistent cross-project knowledge with progressive wiki loading
 - **Coding Standards** — Neoway C coding standards reference
 - **Requirement Management** — Requirement generation, splitting, solution design, and implementation planning
 
@@ -45,10 +45,16 @@ Use your native skill/tool system to invoke skills. See the tool mapping referen
 
 ## Knowledge Base Access
 
-Search the knowledge base via command line:
+Knowledge base retrieval uses **progressive loading** (no vector DB / no CLI search):
+
+1. Read `~/.spec-embedded-iot/knowledge/wiki/INDEX.md` — lightweight global catalog to locate relevant entries.
+2. Read `~/.spec-embedded-iot/knowledge/wiki/entries/*.md` — refined per-entry pages.
+3. Fall back to `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/...` — original archived documents when full detail is needed.
+
+Archive `.spec/` documents to the raw area:
 
 ```bash
-python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {platform} --top 5
+python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive
 ```
 
-Knowledge base path: `~/.spec-embedded-iot/knowledge/platform/{platform}/`
+Knowledge base path: `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/` (raw archive) and `~/.spec-embedded-iot/knowledge/wiki/` (global wiki).

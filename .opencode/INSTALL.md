@@ -33,7 +33,8 @@ When skills reference Claude Code tools:
 - `Skill` tool → OpenCode's native `skill` tool
 - `Read`, `Write`, `Edit` → your native file tools
 - `Bash` → your native shell tools
-- Knowledge base search → `python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_search.py "query"`
+- Knowledge base retrieval → progressive loading: read `~/.spec-embedded-iot/knowledge/wiki/INDEX.md` → `wiki/entries/*.md` → `raw/platform/{platform}/...` (no vector DB / no CLI search)
+- Knowledge base archive → `python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive`
 
 ## Troubleshooting
 

@@ -21,8 +21,14 @@ use skill tool to list skills
 use skill tool to load spec-bug-analyzer
 ```
 
-To search the knowledge base directly:
+To retrieve knowledge directly, use **progressive loading** (no vector DB / no CLI search):
+
+1. Read `~/.spec-embedded-iot/knowledge/wiki/INDEX.md` — global catalog of all entries.
+2. Read `~/.spec-embedded-iot/knowledge/wiki/entries/*.md` — refined per-entry pages.
+3. Fall back to `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/...` — original documents.
+
+To archive `.spec/` documents to the raw area:
 
 ```bash
-python ../spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {platform} --top 5
+python ../spec-knowledge-archiver/scripts/kb.py archive
 ```

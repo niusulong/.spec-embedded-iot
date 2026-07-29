@@ -2,7 +2,7 @@
 
 > 仓库：https://github.com/niusulong/.spec-embedded-iot
 
-面向嵌入式软件开发的 Claude Code 插件，提供 Bug 根因分析、Crash Dump 分析、代码总结，以及"需求→方案→实施计划"完整需求实现链路，配合跨项目知识库语义检索等专业技能，按芯片平台组织知识库。
+面向嵌入式软件开发的 Claude Code 插件，提供 Bug 根因分析、Crash Dump 分析、代码总结，以及"需求→方案→实施计划"完整需求实现链路，配合跨项目知识库（LLM-Wiki 渐进加载）等专业技能，按芯片平台组织知识库。
 
 ## 安装
 
@@ -26,7 +26,7 @@
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结，输出结构化代码总结文档（含 §8 关键字检索清单，供 bug-analyzer 错误码现查） |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成：目录结构映射、模块清单、技术栈识别、构建系统分析 |
 | `spec-init` | spec 初始化、spec 准备环境 | `.spec` 工作流环境初始化，创建基础目录结构；自动拉取/更新跨项目知识库（git clone / git pull --ff-only） |
-| `spec-knowledge-archiver` | 归档bug、同步知识库、archive bug | 文档归档到持久化知识库，支持批量归档、向量索引更新、完整性校验 |
+| `spec-knowledge-archiver` | 归档bug、同步知识库、archive bug | 文档归档到持久化知识库，支持批量归档、wiki 维护、完整性校验 |
 | `spec-neoway-coding-standards` | spec 编码规范、spec 代码规范 | Neoway 嵌入式 C 语言编码规范查询：编码风格、命名规范、注释规范 |
 | `spec-requirement-generator` | spec 整理需求、spec 生成需求文档 | 零散需求（口头描述、会议记录）→ 结构化需求文档 |
 | `spec-requirement-splitter` | spec 拆分需求、拆分需求 | 大需求按功能模块拆分为小需求单元，生成拆分清单 |
@@ -37,38 +37,45 @@
 
 ## 知识库
 
-知识库按芯片平台组织，存储在 `knowledge/platform/{平台名}/` 下：
+知识库按芯片平台组织，原文保真存储在 `knowledge/raw/platform/{平台名}/`，并提供全局 wiki（`knowledge/wiki/`）供渐进加载检索：
 
 ```
 knowledge/
-└── platform/
-    ├── EC626/                  # EC626/EC616 (Cortex-M + FreeRTOS)
-    │   ├── 项目概览.md
-    │   ├── code-summary/
-    │   │   ├── AT命令模块/代码总结.md
-    │   │   ├── MQTT模块/代码总结.md
-    │   │   ├── CoAP模块/代码总结.md
-    │   │   └── ...
-    │   └── bug-solutions/
-    ├── ASR1603/                # ASR1603 (Cortex-R + ThreadX)
-    ├── UIS8850/                # UIS8850/N706-STD (Cortex-R + FreeRTOS)
-    ├── UIS8852/                # UIS8852/N706C (RISC-V + RT-Thread)
-    │   └── code-summary/
-    ├── QCX216/                 # QCX216/N706D (Cortex-M3 + FreeRTOS)
-    └── N58/                    # N58 (其他)
+├── raw/
+│   └── platform/
+│       ├── EC626/                  # EC626/EC616 (Cortex-M + FreeRTOS)
+│       │   ├── 项目概览.md
+│       │   ├── code-summary/
+│       │   │   ├── AT命令模块/代码总结.md
+│       │   │   ├── MQTT模块/代码总结.md
+│       │   │   ├── CoAP模块/代码总结.md
+│       │   │   └── ...
+│       │   └── bug-solutions/
+│       ├── ASR1603/                # ASR1603 (Cortex-R + ThreadX)
+│       ├── UIS8850/                # UIS8850/N706-STD (Cortex-R + FreeRTOS)
+│       ├── UIS8852/                # UIS8852/N706C (RISC-V + RT-Thread)
+│       │   └── code-summary/
+│       ├── QCX216/                 # QCX216/N706D (Cortex-M3 + FreeRTOS)
+│       └── N58/                    # N58 (其他)
+└── wiki/                           # 全局 wiki（LLM-Wiki 渐进加载）
+    ├── INDEX.md                    # 全部条目轻量目录
+    ├── entries/*.md                # 单条目精炼页
+    └── concepts/*.md               # 概念页
 ```
 
 | 内容 | 路径 | 来源 |
 |------|------|------|
-| 项目概览 | `{平台}/项目概览.md` | `spec-project-overview` 生成 |
-| 代码总结 | `{平台}/code-summary/{模块}/代码总结.md` | `spec-code-summary` 生成 |
-| Bug 解决方案 | `{平台}/bug-solutions/` | `spec-knowledge-archiver` 归档 |
-| 向量索引 | `knowledge/vector_db/` | ChromaDB 语义检索 |
+| 项目概览 | `raw/platform/{平台}/项目概览.md` | `spec-project-overview` 生成 |
+| 代码总结 | `raw/platform/{平台}/code-summary/{模块}/代码总结.md` | `spec-code-summary` 生成 |
+| Bug 解决方案 | `raw/platform/{平台}/bug-solutions/` | `spec-knowledge-archiver` 归档 |
+| 全局 wiki | `wiki/INDEX.md` + `wiki/entries/*.md` | 渐进加载入口（由 `kb.py wiki` 维护） |
 
-**知识库搜索**：
+**知识库检索（渐进加载）**：先读 `wiki/INDEX.md` 全局目录定位相关条目，再读 `wiki/entries/*.md` 精炼页，必要时回溯 `raw/platform/{平台}/...` 原文。
+
+**归档 `.spec/` 文档**：
 
 ```bash
-python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
+python skills/spec-knowledge-archiver/scripts/kb.py archive
 ```
 
 ## 项目结构
@@ -100,7 +107,7 @@ knowledge/                      # 跨项目持久化知识库（独立 git 仓�
 1. spec 初始化              → 创建 .spec 目录结构
 2. 将日志放入 .spec/logs/
 3. spec 分析bug              → 日志分析 → 条件知识库检索 → 根因定位 → 生成报告
-4. 归档bug                   → 归档到知识库，更新向量索引
+4. 归档bug                   → 归档到知识库（kb.py archive）
 ```
 
 ### 项目接入

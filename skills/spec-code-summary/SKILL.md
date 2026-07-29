@@ -114,24 +114,18 @@ grep -ril "coap" <project_path>/PLAT --include=*.c --include=*.h \
 
 ### Step 4：生成结构化文档
 
-- **输出路径**：`~/.spec-embedded-iot/knowledge/platform/{平台名}/code-summary/{模块名}/代码总结.md`
+- **输出路径**：`~/.spec-embedded-iot/knowledge/raw/platform/{平台名}/code-summary/{模块名}/代码总结.md`
 - **使用模板**：读 `references/code-summary-template.md`，填占位符后输出。
 - §8「关键日志检索字段」的字段值必须是**代码里真实出现的字面量**（含大小写、`0x` 前缀、`CME ERROR:` 的冒号空格），每条带出处（函数:行）——这是给 spec-bug-analyzer / spec-memory-leak-analyzer 直接 grep 用的，描述或编造都没价值。**§8.0 快速检索清单**只列**默认可见**的关键字（按分组，纯字面量不拼成 pipe 串），让 analyzer 灵活编排进 `log_analyzer.py -k` 或 `grep -E`；关键字数控制在覆盖本模块关键流程/错误即可（通常每组 ≤10 个）。
 
-### Step 5：完整性检查 + 自动纳入向量索引
+### Step 5：完整性检查
 
 - 范围自查：若该功能域在项目里有 AT 命令层 / 业务入口而总结未覆盖，回到 Step 1.2 重新界定（避免把 demo 或适配层当成全部）。
 - 模板章节齐全；识别不到的章节明确写"未识别到，原因…"，**不留空更不编造**（§8 若模块无日志输出要说明）。
 - Mermaid 代码块闭合、表格格式正确、引用链接有效。
 - §8 字段值可 grep：抽查 2-3 个关键字能否用 `Grep` 在源码里命中。
-- **自动纳入向量索引**：文档落盘后自动跑一次增量索引，让 spec-bug-analyzer / spec-solution-designer 等后续技能能按语义检索到本总结（文档虽已写到 knowledge 目录，但向量索引需单独构建，否则语义检索搜不到）：
-  ```bash
-  python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_indexer.py update --collection code-summary
-  ```
-  （Windows bash 下 `~` 展开为 `C:\Users\<用户>\`；若未展开则改用该绝对路径。）
-  - **成功**：向用户报告脚本输出的 `新增 X, 更新 Y, 清理孤儿 Z` 结果。
-  - **失败**（脚本异常 / Python 缺失 / 首次需下载约 450MB 嵌入模型）：**不中止**——文档已落盘、按路径引用不受影响，索引只是检索增强。给一句警告，并提示可稍后手动跑 `spec-knowledge-archiver` 补救。
-  - **跳过**：若用户本次明确说"先不索引 / 跳过索引"，则跳过本步。
+
+> 说明：知识库检索已改为 LLM-Wiki 渐进加载（agent 读 `wiki/INDEX.md` → `entries/` → `raw/`），不再有向量索引构建步骤。本总结落盘到 `knowledge/raw/platform/{平台}/code-summary/{模块}/代码总结.md` 后，由 `kb.py` 维护 wiki 条目；如需补充 wiki，运行 `python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py wiki guide` 查看维护指引。
 
 ## 模块依赖识别方法
 

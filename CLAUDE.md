@@ -4,21 +4,29 @@
 
 ## 知识库
 
-路径：`~/.spec-embedded-iot/knowledge/platform/{平台名}/`
+路径：`~/.spec-embedded-iot/knowledge/raw/platform/{平台名}/`（原文保真）+ `~/.spec-embedded-iot/knowledge/wiki/`（全局 wiki）
 
 | 内容 | 路径 | 说明 |
 |------|------|------|
-| 项目概览 | `{平台}/项目概览.md` | 由 spec-project-overview 生成 |
-| 代码总结 | `{平台}/code-summary/{模块}/代码总结.md` | 由 spec-code-summary 生成 |
-| Bug 解决方案 | `{平台}/bug-solutions/` | 由 spec-knowledge-archiver 归档 |
-| 向量索引 | `~/.spec-embedded-iot/knowledge/vector_db/` | ChromaDB 语义检索 |
+| 项目概览 | `raw/platform/{平台}/项目概览.md` | 由 spec-project-overview 生成 |
+| 代码总结 | `raw/platform/{平台}/code-summary/{模块}/代码总结.md` | 由 spec-code-summary 生成 |
+| Bug 解决方案 | `raw/platform/{平台}/bug-solutions/` | 由 spec-knowledge-archiver 归档 |
+| 全局 wiki | `wiki/INDEX.md` + `wiki/entries/*.md` | 渐进加载入口 |
 
 **当前平台**：从项目路径自动推断（如 `D:\EC626\` → `EC626`），也可手动指定。
 
-### 知识库搜索
+### 知识库检索（渐进加载）
+
+不再使用 CLI 语义检索，改用 agent 渐进加载：
+
+1. 先读 `wiki/INDEX.md` 全局目录，定位相关条目；
+2. 按需读 `wiki/entries/*.md` 精炼页；
+3. 必要时回溯 `raw/platform/{平台}/...` 原文。
+
+归档 `.spec/` 文档：
 
 ```bash
-python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --platform {平台} --top 5
+python skills/spec-knowledge-archiver/scripts/kb.py archive
 ```
 
 ## 可用技能
@@ -48,7 +56,7 @@ python skills/spec-knowledge-archiver/scripts/embed_search.py "{关键词}" --pl
 ## 技能调用规则
 
 1. 用户请求匹配触发词时，**必须**调用对应技能
-2. 知识库搜索优先使用向量语义检索（embed_search.py）
+2. 知识库检索采用渐进加载：先读 `wiki/INDEX.md` 定位，再读 `wiki/entries/*.md`，必要时回溯 `raw/platform/{平台}/...` 原文
 3. Bug 分析流程自动检索知识库历史案例
 4. 分析完成后可归档到知识库（spec-knowledge-archiver）
 

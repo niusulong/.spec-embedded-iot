@@ -1,3 +1,11 @@
+---
+title: <平台> 项目概览
+date: YYYY-MM-DD
+type: project-overview
+platform: <纯平台名>
+tags: [项目概览, <平台>, 目录结构, 模块清单]
+---
+
 # 项目概览
 
 ## 目录
@@ -17,18 +25,24 @@
 
 ### 1.1 项目说明
 
-[目标平台/芯片系列、产品类型、代码库基础等]
+[目标平台/芯片系列、产品类型、代码库基础等一句话概述]
 
-### 1.2 项目基本信息
+### 1.2 项目基本信息（原子字段）
 
-| 属性 | 值 |
-|------|---|
-| 项目名称 | [从配置文件或README提取，未知则写"未知"] |
-| 项目类型 | [IoT固件/中间件/库/应用/操作系统] |
-| 代码规模 | [文件数、目录数估算] |
-| 主要语言 | [C/C++/Python/ASM等] |
-| 构建系统 | [Make/CMake/Kbuild/SCons] |
-| 分析日期 | [YYYY-MM-DD] |
+> 每个字段独立成行，禁止塞进一句话；归档器直接抽取 `platform` 字段做 wiki 过滤，必须填纯平台名（见 section0-spec.md 命名规则）。
+
+| 字段 | 值 | 说明 |
+|------|---|------|
+| 平台 (platform) | [纯平台名，如 EC626 / ASR1603 / UIS8850 / UIS8852，禁止带架构后缀] | 归档 frontmatter `platform` 来源 |
+| 芯片架构 | [ARM Cortex-M / Cortex-R / RISC-V RV32 等] | |
+| RTOS | [FreeRTOS / RT-Thread / ThreadX / AliOS / 无OS] | |
+| 构建系统 | [Make / CMake / Kbuild / SCons] | |
+| 编译器 | [GCC ARM / ARM Compiler / IAR] | |
+| 项目名称 | [从配置文件或 README 提取，未知则写"未知"] | |
+| 项目类型 | [IoT固件/中间件/库/应用/操作系统] | |
+| 代码规模 | [文件数、目录数估算] | |
+| 主要语言 | [C/C++/Python/ASM等] | |
+| 分析日期 | [YYYY-MM-DD] | |
 
 ## 2. 高层架构
 

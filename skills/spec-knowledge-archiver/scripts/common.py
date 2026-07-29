@@ -10,7 +10,6 @@ import os
 import re
 import sys
 import tempfile
-import threading
 
 # ── 路径常量 ──────────────────────────────────────────────
 
@@ -23,7 +22,9 @@ CONFIG_FILE = os.path.join(KNOWLEDGE_ROOT, "knowledge_config.json")
 META_FILE = ".archive_meta.json"
 
 # 归档元数据 .archive_meta.json 的 schema 版本（演进时递增，load_meta 检查兼容性）
-META_SCHEMA_VERSION = 1
+# v1: 单文件平铺归档（file: "xxx.md"）
+# v2: 多文件保真归档（条目=目录，files: [{name, role}]）—— LLM-Wiki 路线
+META_SCHEMA_VERSION = 2
 
 # 「结构化摘要」节标题匹配：允许前导序号（"0."/"0 "）和尾部内容（"（专项）"）。
 # merge 选主文档与 ensure 注入字段共用此正则，避免两处写法漂移。
@@ -98,7 +99,7 @@ _DEFAULT_CONFIG = {
         },
         "protocols": {
             "strategy": "markdown_chunks",
-            "sources": ["protocols/**/*.md"],
+            "sources": ["raw-protocols/**/*.md"],
             "chunk_size": 1500,
             "chunk_overlap": 200
         }
@@ -130,6 +131,7 @@ def _validate_config(cfg):
         print("[config] 警告: collections 为空，向量索引/检索将无法工作", file=sys.stderr)
     # summary 策略的 collection 必须能反查到一个 doc_type（dest_dir == collection 名），
     # 否则 _collect_summary_entries 拿不到 dt_cfg，摘要向量静默降级。
+    # 注：向量检索已废弃（改走 LLM-Wiki），本检查仅为兼容老配置保留。
     dest_to_dtype = {dt.get("dest_dir"): name for name, dt in doc_types.items()}
     for col_name, col in collections.items():
         if col.get("strategy") == "summary" and col_name not in dest_to_dtype:
@@ -178,7 +180,10 @@ def get_doc_type_config(doc_type):
 
 
 def get_collection_config(collection_name):
-    """获取指定 collection 的配置，不存在则抛 ValueError（由 CLI 边界处理，便于作为库复用）。"""
+    """获取指定 collection 的配置，不存在则抛 ValueError。
+
+    注意：向量检索已废弃（改走 LLM-Wiki），本函数仅为兼容老配置读取保留。
+    """
     cfg = load_config()
     cols = cfg.get("collections", {})
     if collection_name not in cols:
@@ -187,54 +192,12 @@ def get_collection_config(collection_name):
 
 
 def list_collections():
-    """返回所有配置的 collection 名称。"""
+    """返回所有配置的 collection 名称。
+
+    注意：向量检索已废弃（改走 LLM-Wiki），本函数仅为兼容老配置读取保留。
+    """
     cfg = load_config()
     return list(cfg.get("collections", {}).keys())
-
-
-# ── ChromaDB 延迟加载 ────────────────────────────────────
-
-_ef_instance = None
-_ef_lock = threading.Lock()
-_chromadb_module = None
-
-
-def get_embedding_function():
-    """延迟加载 embedding 函数（首次调用约 2-3s）。双检锁保证并发安全。"""
-    global _ef_instance
-    if _ef_instance is None:
-        with _ef_lock:
-            if _ef_instance is None:
-                from chromadb.utils import embedding_functions
-                _ef_instance = embedding_functions.SentenceTransformerEmbeddingFunction(
-                    model_name="paraphrase-multilingual-MiniLM-L12-v2"
-                )
-    return _ef_instance
-
-
-def get_chromadb():
-    """延迟加载 chromadb 模块。"""
-    global _chromadb_module
-    if _chromadb_module is None:
-        import chromadb
-        _chromadb_module = chromadb
-    return _chromadb_module
-
-
-def get_vector_client():
-    """获取 ChromaDB 持久化客户端。"""
-    os.makedirs(VECTOR_DB_PATH, exist_ok=True)
-    return get_chromadb().PersistentClient(path=VECTOR_DB_PATH)
-
-
-def get_collection(collection_name):
-    """获取指定 collection 实例。"""
-    client = get_vector_client()
-    return client.get_or_create_collection(
-        name=collection_name,
-        embedding_function=get_embedding_function(),
-        metadata={"description": f"{collection_name} 向量索引", "hnsw:space": "cosine"}
-    )
 
 
 # ── 路径工具 ──────────────────────────────────────────────

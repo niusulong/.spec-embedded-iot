@@ -1,14 +1,13 @@
 # spec-knowledge-archiver 运行时依赖
-# 用途：知识库向量索引（embed_indexer.py）与语义检索（embed_search.py）
-# 安装：pip install -r skills/spec-knowledge-archiver/requirements.txt
+# 用途：知识库归档（kb.py archive）+ LLM-Wiki 维护（kb.py wiki lint/status/guide）
 #
 # Python >= 3.9（开发/测试环境 3.12）
+#
+# 注：向量检索（chromadb + sentence-transformers）已废弃并移除
+#     （2026-07 改走 LLM-Wiki 路线，检索靠 agent 读 wiki/INDEX.md 渐进加载）
+# 注：LLM-Wiki 维护依赖当前会话的 agent（ZCode/Claude），脚本本身不调 LLM
 
-# 向量数据库：PersistentClient + HNSW（cosine/l2 空间），Collection.get/query API
-chromadb>=1.5
+# YAML frontmatter 解析（wiki 页必须有 frontmatter，lint/ensure_wiki_frontmatter 用）
+PyYAML>=6.0
 
-# 句向量模型加载器：paraphrase-multilingual-MiniLM-L12-v2（中英混排，384 维）
-# 首次使用自动下载模型（约 450MB）。依赖链会带入 torch（体积较大，属正常）。
-sentence-transformers>=5.0
-
-# 注：归档文件锁使用标准库（Windows msvcrt / Unix fcntl），无需第三方依赖。
+# 注：归档文件锁使用标准库（Windows msvcrt / Unix fcntl），无需第三方依赖

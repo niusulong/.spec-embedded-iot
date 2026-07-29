@@ -1,5 +1,5 @@
 # knowledge 是独立 git 仓库（knowledge/.git），不在主仓库追踪
-# 内部向量库 vector_db/ 为生成产物，由 embed_indexer.py build 重建
+# wiki/ 由 kb.py wiki lint/guide 维护，检索靠 agent 渐进加载（无向量库）
 knowledge/
 
 # 仅追踪 spec-* 技能；其它技能（esafenet-file-io、skill-creator、pdf、docs 等）不入库
@@ -9,6 +9,8 @@ skills/*
 # 临时/本地文件
 /plan.md
 **/.archive.lock
+# wiki lint 本地检查输出（kb.py wiki lint），不入库
+wiki_lint.txt
 
 # 本地工具配置（Claude Code 会话级设置，不入库）
 .claude/

@@ -62,11 +62,20 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 
 ## Knowledge Base
 
-**Path:** `~/.spec-embedded-iot/knowledge/platform/{platform}/`
+**Paths:**
+- Raw archive: `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/...` (original documents)
+- Global wiki: `~/.spec-embedded-iot/knowledge/wiki/` (`INDEX.md` + `entries/*.md` + `concepts/*.md`)
 
-**Search command:**
+**Retrieval (progressive loading — no vector DB / no CLI search):**
+
+1. Read `wiki/INDEX.md` — lightweight global catalog to locate relevant entries.
+2. Read `wiki/entries/*.md` — refined per-entry pages.
+3. Fall back to `raw/platform/{platform}/...` — original archived documents when full detail is needed.
+
+**Archive `.spec/` documents:**
+
 ```bash
-python ../spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {platform} --top 5
+python ../spec-knowledge-archiver/scripts/kb.py archive
 ```
 
 **Platform detection:** Infer from project path (e.g., `D:\EC626\` → `EC626`) or ask user.

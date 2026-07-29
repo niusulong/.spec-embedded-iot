@@ -1,0 +1,57 @@
+spec-embedded-iot
+Copyright (c) 2026 niusulong
+
+This product includes software derived from the following third-party projects:
+
+======================================================================
+1. lucasastorian/llmwiki
+======================================================================
+Source:    https://github.com/lucasastorian/llmwiki
+License:   Apache License 2.0
+Local copy: THIRD_PARTY_LICENSES/LICENSE.llmwiki.txt
+
+Borrowed components (with modifications for spec-embedded-iot context):
+
+  skills/spec-knowledge-archiver/scripts/wiki/helpers.py
+    - Derived from mcp/tools/helpers.py
+    - Modifications: removed deep_link (depends on hosted config);
+      kept glob_match / resolve_path / parse_page_range (pure functions).
+
+  skills/spec-knowledge-archiver/scripts/wiki/references.py
+    - Derived from mcp/tools/references.py
+    - Modifications: kept only parse_citation_filename and parse_wiki_links
+      (pure functions); removed update_references / get_backlinks_summary
+      (depended on VaultFS async storage layer).
+
+  skills/spec-knowledge-archiver/scripts/wiki/frontmatter.py
+    - Derived from mcp/tools/write.py (frontmatter-related functions)
+    - Modifications: removed FastMCP / VaultFS dependencies;
+      renamed private _parse_frontmatter etc. to public parse_frontmatter etc.
+
+  skills/spec-knowledge-archiver/scripts/wiki/chunker.py
+    - Derived from mcp/services/chunker.py
+    - Modifications: removed store_chunks_pg / store_chunks_sqlite (DB persistence);
+      kept chunk_text + Chunk dataclass + helpers (pure functions).
+      Purpose changed: originally for vector indexing, now only used by lint
+      (estimate document size, check oversized paragraphs).
+
+  skills/spec-knowledge-archiver/scripts/wiki/guide.py
+    - Inspired by mcp/tools/guide.py (GUIDE_TEXT pattern)
+    - Modifications: heavily customized for embedded IoT context
+      (5 knowledge types: bug-solutions / code-summary / requirement-solutions /
+      official-docs / project-overview; platform isolation in raw/, global wiki/).
+
+  skills/spec-knowledge-archiver/scripts/wiki/lint.py
+    - Inspired by mcp/tools/lint.py (LintHandler pattern)
+    - Modifications: removed MCP FastMCP registration; removed VaultFS dependency;
+      replaced direct filesystem reads; trimmed checks to frontmatter / type /
+      broken-link / orphan-entry (removed citation-graph checks since we use
+      wikilinks not footnote citations, and removed stale_page which needed DB tracking).
+
+Conceptual inspiration:
+  - Karpathy's LLM-Wiki gist:
+    https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+  - The three-directory pattern (raw / wiki / index) is borrowed from this concept.
+
+All borrowed code retains Apache-2.0 compatibility. See
+THIRD_PARTY_LICENSES/LICENSE.llmwiki.txt for the full license text.

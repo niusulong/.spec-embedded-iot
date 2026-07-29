@@ -17,16 +17,22 @@ Skills use Claude Code tool names. When you encounter these in a skill, use your
 
 ## Knowledge Base Access in Codex
 
-Codex does not have a native skill tool. To search the knowledge base:
+Codex does not have a native skill tool. Retrieve knowledge via **progressive loading** (no vector DB / no CLI search):
+
+1. Read `~/.spec-embedded-iot/knowledge/wiki/INDEX.md` — global catalog of all entries.
+2. Read `~/.spec-embedded-iot/knowledge/wiki/entries/*.md` — refined per-entry pages.
+3. Fall back to `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/...` — original documents.
+
+To read a knowledge base entry directly:
 
 ```bash
-python ../spec-knowledge-archiver/scripts/embed_search.py "{query}" --platform {platform} --top 5
+cat ~/.spec-embedded-iot/knowledge/raw/platform/{platform}/bug-solutions/{filename}.md
 ```
 
-To read a knowledge base entry:
+To archive `.spec/` documents to the raw area:
 
 ```bash
-cat ~/.spec-embedded-iot/knowledge/platform/{platform}/bug-solutions/{filename}.md
+python ../spec-knowledge-archiver/scripts/kb.py archive
 ```
 
 ## Subagent Dispatch

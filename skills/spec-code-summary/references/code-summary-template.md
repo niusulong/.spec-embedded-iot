@@ -1,3 +1,12 @@
+---
+title: <模块名> 代码总结
+date: YYYY-MM-DD
+type: code-summary
+platform: <纯平台名，如 EC626 / ASR1603 / UIS8850 / UIS8852，禁止带架构后缀>
+module: <模块名，如 MQTT / CoAP / LWIP>
+tags: [<3-8 个检索关键词>]
+---
+
 # [模块名称] 代码架构总结
 
 ## 目录
