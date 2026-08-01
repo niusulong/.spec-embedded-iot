@@ -12,9 +12,10 @@ Design:
   * Full register-rule table is carried across frames so CFA rules that
     reference a frame pointer (s0/fp) or other callee-saved regs resolve
     correctly, not just the sp/ra pair.
-  * FDEs are indexed by start-PC for O(log n) lookup and the parsed table is
-    pickled to the system temp dir keyed by ELF hash (mirrors the struct_offsets
-    cache in common.py), so re-runs are instant.
+  * FDEs are indexed by start-PC for O(log n) lookup and kept in memory. The
+    parsed table is intentionally NOT pickled (pyelftools FDE objects carry
+    parser state); .debug_frame is small (~hundreds of KB) so re-parsing each
+    run is fast. (Contrast with struct_offsets in common.py, which IS pickled.)
 
 Usage (library):
     from common import Mem, Symbols

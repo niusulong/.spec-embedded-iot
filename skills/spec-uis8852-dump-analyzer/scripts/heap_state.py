@@ -11,7 +11,7 @@ Usage:  python heap_state.py <dump_dir> <ap.elf>
 import os, sys, struct
 from collections import Counter
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import Mem, Symbols, find_toolchain, addr2line_batch
+from common import Mem, Symbols, get_tool, addr2line_batch
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -29,8 +29,7 @@ EMPIRICAL = {"base": 0x04, "total": 0x08}
 def main():
     mem = Mem(DUMP)
     syms = Symbols(ELF)
-    tc = find_toolchain(DUMP)
-    addr2line = os.path.join(tc, "riscv64-unknown-elf-addr2line.exe") if tc else ""
+    addr2line = get_tool(DUMP, "riscv64-unknown-elf-addr2line.exe")
     S = lambda n: syms.lookup(n)[0]
 
     print("=" * 92)

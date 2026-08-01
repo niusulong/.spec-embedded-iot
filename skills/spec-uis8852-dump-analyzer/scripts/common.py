@@ -6,7 +6,7 @@ Provides: memory-region access (.bin files), ELF symbol table + DWARF struct
 offsets, RISC-V toolchain auto-discovery, batch addr2line.
 All symbol addresses are read dynamically from the ELF — nothing is hardcoded.
 """
-import os, struct, bisect, subprocess
+import os, struct, bisect, subprocess, tempfile, shutil, hashlib
 
 # ----------------------------------------------------------------------------
 # Memory regions: (filename, base_addr). Aliases are listed so either address
@@ -145,6 +145,33 @@ def in_text(addr, regions=UIS8852_TEXT_REGIONS):
     return False
 
 
+def is_call_site(mem, value):
+    """True if the instruction immediately before `value` is a RISC-V call
+    (jal/jalr with rd=ra, or compressed c.jal/c.jalr) — i.e. `value` is a
+    plausible saved return address. Reads raw dump bytes (fast, no objdump).
+
+    Approximate by design (a few opcode byte/halfword patterns); it only
+    pre-filters heuristic stack scans. For authoritative call-site confirmation
+    use objdump (scripts/disasm.py) on the surviving candidates.
+    """
+    try:
+        b1 = mem.read(value - 4, 1)[0]
+    except Exception:
+        return False
+    if b1 in (0xef, 0xe7, 0x67):   # jal ra / jalr ra
+        return True
+    try:
+        h2 = struct.unpack("<H", mem.read(value - 2, 2))[0]
+    except Exception:
+        return False
+    op = h2 & 0x3
+    if op == 1 and (h2 & 0x1FFC) != 0 and (h2 & 0xE000) == 0x2000:
+        return True
+    if op == 2 and (h2 & 0x0F80) != 0 and (h2 & 0xE000) == 0x8000:
+        return True
+    return False
+
+
 # ----------------------------------------------------------------------------
 # ELF symbols + DWARF
 from elftools.elf.elffile import ELFFile
@@ -186,6 +213,19 @@ class Symbols:
                 return fn, addr - fa
             return fn + "(?)", addr - fa
         return "??", 0
+
+    def func_containing(self, addr):
+        """Build-derived code-address test: returns (name, fa, fsz) if addr falls
+        inside a known function's [fa, fa+fsz), else None. Use this instead of
+        hardcoded address-range magic to decide whether a value is a real code
+        pointer (return address): a data/heap address resolves to None because it
+        lands between functions, while a return address lands inside its caller."""
+        i = bisect.bisect_right(self._func_addrs, addr) - 1
+        if i >= 0:
+            fa, fsz, fn = self.funcs[i]
+            if fa <= addr < fa + fsz:
+                return fn, fa, fsz
+        return None
 
     def struct_offsets(self, tag):
         """Robust struct member offset lookup with on-disk DWARF cache.
@@ -325,6 +365,51 @@ def find_toolchain(dump_dir, tool="riscv64-unknown-elf-addr2line.exe"):
     return None
 
 
+def get_tool(dump_dir, name):
+    """Full path to a toolchain executable (e.g. 'riscv64-unknown-elf-objdump.exe'),
+    located under the project toolchain dir via find_toolchain. Returns '' if the
+    toolchain can't be found. Centralizes the 'find dir + join exe' pattern so the
+    exe filename string lives in one place instead of being repeated per script."""
+    tdir = find_toolchain(dump_dir, tool=name)
+    return os.path.join(tdir, name) if tdir else ""
+
+
+_ASCII_ELF_CACHE = {}
+
+def _ascii_elf_path(elf):
+    """Return an ASCII-only path for the ELF, so it can be passed as a subprocess
+    arg to MinGW binutils (objdump/addr2line). Those tools mangle non-ASCII path
+    args on Windows (a Chinese folder like '新建文件夹' becomes garbage →
+    'No such file' / empty disassembly). The Python open()/pyelftools callers
+    are unaffected; only subprocess argv is.
+
+    Returns the original path if already ASCII; otherwise a cached copy in the
+    system temp dir (the ELF is ~16MB; the copy is reused across runs via a
+    path+mtime hash). Falls back to the original path if the copy fails."""
+    try:
+        elf.encode("ascii")
+        return elf
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    abs_ = os.path.abspath(elf)
+    cached = _ASCII_ELF_CACHE.get(abs_)
+    if cached and os.path.exists(cached):
+        return cached
+    try:
+        key = "%s|%d|%d" % (abs_, os.path.getsize(abs_), int(os.path.getmtime(abs_)))
+    except OSError:
+        return elf
+    h = hashlib.md5(key.encode("utf-8")).hexdigest()[:16]
+    dst = os.path.join(tempfile.gettempdir(), "uis8852_elf_%s.elf" % h)
+    if not os.path.exists(dst):
+        try:
+            shutil.copyfile(abs_, dst)
+        except OSError:
+            return elf
+    _ASCII_ELF_CACHE[abs_] = dst
+    return dst
+
+
 def addr2line_batch(addr2line_exe, elf, addrs):
     """Resolve list of ints -> {addr: (func, 'file:line')}. Empty on failure."""
     out = {}
@@ -333,7 +418,7 @@ def addr2line_batch(addr2line_exe, elf, addrs):
     uniq = sorted(set(a for a in addrs if a))
     if not uniq:
         return out
-    args = [addr2line_exe, "-f", "-e", elf] + ["0x%x" % a for a in uniq]
+    args = [addr2line_exe, "-f", "-e", _ascii_elf_path(elf)] + ["0x%x" % a for a in uniq]
     try:
         r = subprocess.run(args, capture_output=True, text=True, timeout=120)
         lines = r.stdout.splitlines()
@@ -359,7 +444,7 @@ def objdump_range(objdump_exe, elf, start, stop):
         r = subprocess.run(
             [objdump_exe, "-d", "-C",
              "--start-address=0x%x" % start,
-             "--stop-address=0x%x" % stop, elf],
+             "--stop-address=0x%x" % stop, _ascii_elf_path(elf)],
             capture_output=True, text=True, timeout=30)
         return r.stdout
     except Exception:

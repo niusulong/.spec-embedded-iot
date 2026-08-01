@@ -163,77 +163,10 @@ def main():
     ct = mem.try_u32(S("g_osCurrentThread") or 0)
     print("g_osCurrentThread -> 0x%08x   # 当前任务（ISR 上下文时=被中断的任务）" % (ct or 0))
 
-    def read_name(tcb):
-        """Return decoded name string if (tcb+name_off) holds a valid pointer
-        to a printable string, else None."""
-        try:
-            name_p = mem.u32(tcb + O["name"])
-        except Exception:
-            return None
-        if not (0x00008000 <= name_p < 0x100000000):
-            return None
-        try:
-            s = mem.cstr(name_p, 20)
-        except Exception:
-            return None
-        if not s or len(s) < 2 or not all(33 <= ord(c) < 127 for c in s):
-            return None
-        # reject file names and stack-fill patterns (false positives)
-        if "." in s or "/" in s:
-            return None
-        if len(set(s)) <= 1:                    # e.g. "####", "ZZZZ"
-            return None
-        return s
-
-    def is_tcb(tcb):
-        """Strong TCB signature: printable task name + sane stack size + stack
-        base in RAM + SP currently inside its own stack region."""
-        name = read_name(tcb)
-        if not name:
-            return None
-        try:
-            ss = mem.u32(tcb + O["stackSize"])
-            sa = mem.u32(tcb + O["stackAddr"])
-            sp = mem.u32(tcb + O["sp"])
-            stat = mem.u32(tcb + O["stat"]) & 0xf if "stat" in O else 0
-        except Exception:
-            return None
-        if not (256 <= ss <= (1 << 16)):         # task stacks: 256..64KB
-            return None
-        if not (0x00010000 <= sa < 0x80400000 or 0xc0200000 <= sa < 0xc0280000):
-            return None
-        if stat > 4:                             # INIT/READY/SUSPEND/RUNNING/CLOSE
-            return None
-        # SP must lie within this thread's own stack region (kills most false positives)
-        if not (sa <= sp <= sa + ss):
-            return None
-        return name
-
-    # Enumerate TCBs by SCAN (robust — does not depend on list integrity).
-    # TCBs live in PSRAM BSS and the IRAM task-stack area. Scan both, 8-byte
-    # aligned, checking the osThread_t signature.
-    threads = []   # (tcb_addr, name)
-    found = set()
-    SCAN_REGIONS = [
-        (0x80160000, 0x801c0000),   # PSRAM BSS (static TCBs, heap-adjacent)
-        (0xc0200000, 0xc0280000),   # IRAM (task stacks + TCBs)
-        (0x801a0000, 0x80280000),   # PSRAM heap (dynamically-created threads)
-    ]
-    for lo, hi in SCAN_REGIONS:
-        a = lo
-        while a < hi:
-            try:
-                # quick prefilter: name slot must look like a pointer
-                name_p = mem.u32(a + O["name"])
-            except Exception:
-                a += 8; continue
-            if 0x00008000 <= name_p < 0x100000000:
-                nm = is_tcb(a)
-                if nm and a not in found:
-                    found.add(a)
-                    threads.append((a, nm))
-            a += 8
-
+    # Enumerate TCBs by signature scan (robust — does not depend on the task
+    # list). Reuses the module-level enumerate_tcbs/is_valid_tcb so this script
+    # and its importers (unwind_cfi.py / assert_reason.py) share ONE impl.
+    threads = enumerate_tcbs(mem, O)
     # 当前任务排第一
     threads.sort(key=lambda x: (0 if x[0] == ct else 1, x[0]))
     print("扫描法枚举到 %d 个任务（不依赖任务链表完整性）\n" % len(threads))
@@ -247,7 +180,7 @@ def main():
     rows = []
     for tcb, name0 in threads:
         try:
-            name = name0 or read_name(tcb) or "?"
+            name = name0 or tcb_name(mem, O, tcb) or "?"
             stat = mem.try_u32(tcb + O["stat"]) & 0xf if "stat" in O else 0
             stat_s = STAT.get(stat, str(stat))
             prio = (mem.try_u32(tcb + O["currentPriority"]) & 0xff) if "currentPriority" in O else 0

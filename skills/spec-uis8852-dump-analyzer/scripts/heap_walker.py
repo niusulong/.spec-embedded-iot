@@ -103,13 +103,24 @@ def main():
     free_bytes = sum(c[1] for c in chunks if not c[3])
     inuse_bytes = sum(c[1] for c in chunks if c[3])
     top = chunks[-1] if chunks else None
+    top_sz = top[1] if top else 0
+    # The top chunk is dlmalloc's "wilderness" — effectively FREE remainder available
+    # for future allocation, but the walker flags it inuse=True because there is no
+    # next chunk to test PREV_INUSE. Exclude it to get the real user-allocated total;
+    # otherwise a heap that is mostly empty (huge top) misreports as nearly full.
+    real_inuse = max(0, inuse_bytes - top_sz)
+    real_free = free_bytes + top_sz
+    usage_pct = real_inuse * 100.0 / total if total else 0.0
 
     print("\n  遍历 %d 个 chunk（%d 在用 / %d 空闲），停在 @0x%08x" % (n_total, n_inuse, n_free, p))
-    print("  已用 inuse=0x%x   空闲 free=0x%x   合计=0x%x (堆总 total=0x%x, 缺口 gap=0x%x)"
+    print("  已用 inuse=0x%x(含 top)   空闲 free=0x%x   合计=0x%x (堆总 total=0x%x, 缺口 gap=0x%x)"
           % (inuse_bytes, free_bytes, inuse_bytes + free_bytes, total, total - (inuse_bytes + free_bytes)))
-    print("  # gap=0 表示堆内存物理完整（无空洞/越界）；top 是堆顶剩余块，越小越接近耗尽")
+    print("  # gap=0 表示堆内存物理完整（无空洞/越界）")
     if top:
-        print("  堆顶 chunk(top): @0x%08x sz=0x%x(%d字节) inuse=%s   # top 很小=堆几乎满" % (top[0], top[1], top[1], top[3]))
+        print("  堆顶 chunk(top/wilderness): @0x%08x sz=0x%x(%d字节) — 此为可分配剩余，越大堆越空（非耗尽标志）"
+              % (top[0], top_sz, top_sz))
+    print("  真实使用率 = (用户已用 / total) = 0x%x / 0x%x = %.1f%%   # >95%% = 堆耗尽高危"
+          % (real_inuse, total, usage_pct))
 
     frees = sorted([c for c in chunks if not c[3]], key=lambda c: -c[1])[:5]
     print("\n  最大 5 个空闲块（最大块<请求大小=无法满足分配）:")
@@ -146,10 +157,13 @@ def main():
         print("堆内存被越界写破坏 MEMORY OVERWRITE @0x%08x（chunk size 字段损坏）" % corrupt_at)
     elif bad_ptrs > 0:
         print("空闲链表链接损坏 FREE-LIST LINKAGE CORRUPTION（%d 个非法 fd/bk；堆内存本身完整）" % bad_ptrs)
-    elif top and top[1] < 64:
-        print("堆耗尽 EXHAUSTED — 堆物理结构完整，但堆顶仅剩 %d 字节" % top[1])
+    elif top and top_sz < 64:
+        print("堆耗尽 EXHAUSTED — 堆物理结构完整，但堆顶仅剩 %d 字节（真实使用率 %.1f%%）" % (top_sz, usage_pct))
+    elif usage_pct > 95:
+        print("堆接近耗尽 — 真实使用率 %.1f%%（堆顶剩 0x%x 字节）" % (usage_pct, top_sz))
     else:
-        print("堆物理完整（未检测到损坏）")
+        print("堆物理完整（未检测到损坏），真实使用率 %.1f%%，堆顶剩 0x%x(%d字节) — 未耗尽"
+              % (usage_pct, top_sz, top_sz))
 
     # ---- bin-header (av_) 完整性扫描 ----
     # av_ 只有约 1KB（128 bin × 8 字节）。扫整个 16KB DTCM 会因其他全局量误报。

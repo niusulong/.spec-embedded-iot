@@ -11,9 +11,9 @@ Reconstructs the panic context from a DTools ramdump + AP ELF:
 
 Usage:  python uis8852_analyze.py <dump_dir> <ap.elf>
 """
-import os, sys, struct
+import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import (Mem, Symbols, find_toolchain, addr2line_batch, in_text)
+from common import (Mem, Symbols, get_tool, addr2line_batch, in_text, is_call_site)
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -31,9 +31,8 @@ FRAME_FIELDS = ["epc", "ra", "mstatus", "gp", "tp", "t0", "t1", "t2", "s0_fp", "
 def main():
     mem = Mem(DUMP)
     syms = Symbols(ELF)
-    tc = find_toolchain(DUMP)
-    addr2line = os.path.join(tc, "riscv64-unknown-elf-addr2line.exe") if tc else ""
-    print("(toolchain: %s)" % tc)
+    addr2line = get_tool(DUMP, "riscv64-unknown-elf-addr2line.exe")
+    print("(toolchain: %s)" % os.path.dirname(addr2line))
 
     def S(n):
         return syms.lookup(n)[0]
@@ -139,25 +138,6 @@ def main():
     print(" 调用栈回溯 BACKTRACE（启发式扫描，可能含噪声；精确链请用 unwind.py / objdump 复核）")
     print("=" * 92)
 
-    def is_call_site(value):
-        """True if instr right before `value` is a RISC-V call (jal/jalr/c.jal/c.jalr)."""
-        try:
-            b1 = mem.read(value - 4, 1)[0]
-        except Exception:
-            return False
-        if b1 in (0xef, 0xe7, 0x67):
-            return True
-        try:
-            h2 = struct.unpack("<H", mem.read(value - 2, 2))[0]
-        except Exception:
-            return False
-        op = h2 & 0x3
-        if op == 1 and (h2 & 0x1FFC) != 0 and (h2 & 0xE000) == 0x2000:
-            return True
-        if op == 2 and (h2 & 0x0F80) != 0 and (h2 & 0xE000) == 0x8000:
-            return True
-        return False
-
     # scan anchors: frame sp (= trace + 128) and current thread sp
     anchors = []
     if e_trace:
@@ -172,7 +152,7 @@ def main():
             if v is None:
                 a += 4
                 continue
-            if in_text(v) and is_call_site(v):
+            if in_text(v) and is_call_site(mem, v):
                 fn, off = syms.resolve(v)
                 print("   0x%08x -> 0x%08x  %s+0x%x" % (a, v, fn, off))
                 addrs.append(v)

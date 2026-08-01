@@ -62,7 +62,7 @@ UIS8852 AP 核视图（dump `.bin` 文件名即基址）：
 
 ## 快速开始
 
-**推荐：一键跑全部 7 个分析脚本，输出自动归档 + 生成 INDEX.md**（便于追溯对比）：
+**推荐：一键跑全部分析脚本，输出自动归档 + 生成 INDEX.md**（便于追溯对比）：
 ```bash
 SKILL_DIR="<Base directory for this skill>"
 python "scripts/run_all.py" <dump_dir> <ap.elf> <bug_out_dir> --pc <crash_PC>
@@ -76,6 +76,20 @@ python "scripts/uis8852_analyze.py" <dump_dir> <ap.elf>
 ```
 一键输出：版本、gIsPanic、abort 类型、g_osErrorLog、g_osAssert/osException 完整字段、rt_hw_stack_frame 32 个寄存器、当前 IRQ（`g_osIrqNo`）、启发式栈扫描回溯 + addr2line 源码定位。这是分析的**起点**；后续按下方流程深入。
 
+## 分析原则：穷尽证据，结论止于根因（不止于表象）
+
+每条结论都要经得起"为什么"的追问，直到落到**可改的具体代码点**。这是本技能的第一纪律，优先级高于"尽快给结论"。
+
+1. **先榨干已有信息，再考虑要更多数据**。dump 里每个 `.bin`、已跑脚本的每段输出、栈上每个未解引用的指针/地址，都要把价值用尽，再问"需要补抓/补日志"。不要在还有未读区段、未跑脚本、未解指针时就停下——先用 `disasm.py`/`peek.py` 把存疑结论逐字核实，再决定是否需要新数据。
+
+2. **逐层下钻到根因，禁止把"症状"当结论**。对每个发现继续追问三问：**谁**写的（哪段代码 / 哪个执行流）、**在哪**写的（哪条指令 / 哪个地址）、**为什么**会写到这（机制：栈溢出 / UAF / 野指针 / 越界写 / 逻辑错）。三问都答清才算到根因；答不清就继续钻。
+
+3. **"到没到根因"的硬标准**：结论必须能指到**具体可改的点**（函数+行 / 崩溃指令 / 明确机制 + 触发条件）。只说"X 被破坏""Y 异常"是表象不是根因——它只回答了"what"，没回答"who/where/why"。
+
+4. **证据不全时，给出下一步方向**。把每条结论标成【已确证 / 推断 / 未知】；对【未知】项给出**具体的**取证动作（跑哪个脚本、看哪个 `.bin` 的哪个 offset、需要补什么数据 / 复现条件），而不是含糊收尾。
+
+> **样板（本技能据此打磨）**：崩溃值 `rb_id[1]=0xc9` 是**症状**——若止步于此得到"全局被踩 → 加指针校验"，那是表象。下钻三问：**谁**把 0xc9 写进 `g_tRlcUeEntity`？**在哪**（0x136b8）？**为什么**写到这里？→ 落到"系统/中断栈 2KB 在 DEBUG 版被 `SLOG→dlmalloc→do_check_*` 深链撑爆，溢出帧把 chunk-size 0xc9 推进紧贴栈底的 RLC 表"（谁=中断上下文 do_check 链；在哪=越过 `__stack_start` 溅射进表；为什么=2KB 栈 + DEBUG `do_check` 放大），三问闭环、指向明确改点（增大 `__stack_size` / 栈底加 guard / 关 do_check）——这才是根因。
+
 ## 执行流程
 
 > **场景路由**（按 `gBlueScreenAbortType` + `gIsPanic` + `gResetReson` 决定重点步骤）：
@@ -83,10 +97,13 @@ python "scripts/uis8852_analyze.py" <dump_dir> <ap.elf>
 > | 场景 | 触发信号 | 重点步骤 |
 > |------|---------|---------|
 > | **ASSERT (`0xFE`)** | gBlueScreenAbortType=0xFE | 2→4→5→7→8→9→10（assert 位置 + 中断 + 堆） |
-> | **EXCEPTION (硬件异常)** | abort=mcause code (1/2/5/7) | 2→4→5→**6**→**代码完整性**→9→10（反汇编崩溃指令 + 查代码损坏） |
+> | **EXCEPTION (硬件异常)** | abort=mcause code (1/2/5/7) | 2→4→5→**6**→**代码完整性**→**系统栈(8b2)**→9→10（反汇编崩溃指令 + 查代码损坏 + 查系统栈溢出踩全局） |
 > | **WDT/看门狗超时** | gResetReson bit3/4 置位 + 无 panic | **复位/WDT** → 4 → **任务列表**（找死锁/饿死） |
-> | **栈溢出/死锁** | 某任务栈水位 >90% 或全 SUSPEND | **任务列表** → 4（找溢出任务/持锁者） |
+> | **线程栈溢出/死锁** | 某任务栈水位 >90% 或全 SUSPEND | **任务列表(8b)** → 4（找溢出任务/持锁者） |
+> | **系统/中断栈溢出踩全局** | 线程栈全正常 + 某**全局**被解引用出非法值，且该值是代码指针/堆·SLOG 元数据 | **系统栈(8b2)**（threads.py 看不到此栈！） |
 > | **设备重启无 panic** | gIsPanic=0 | **复位/WDT**（复位原因 forensics） |
+>
+> ⚠️ **栈溢出有两类，别只查一类**：`threads.py`(8b) 只覆盖**线程栈**；`system_stack.py`(8b2) 覆盖**系统/中断栈**（`__stack_start..__stack_end`，非线程栈，所有 ISR 跑在此）。线程水位全正常 ≠ 排除栈溢出——**全局被踩成代码指针/堆元数据是系统栈溢出的指纹**。
 >
 > 通用必做：Step 1（版本校验）、Step 2（现场）、Step 4（中断身份）、Step 9（根因）、Step 10（报告）。
 
@@ -181,13 +198,21 @@ riscv64-unknown-elf-addr2line -f -e <ap.elf> 0x ADDR1 0x ADDR2 ...
 
 ### Step 6：反汇编确认崩溃指令（仅 EXCEPTION / 需确认 assert 分支）
 
+**推荐：一键反汇编（自动找工具链 + 符号→地址，省去手拼 objdump）**：
+```bash
+python "scripts/disasm.py" <dump_dir> <ap.elf> <符号|地址> [+len]
+#   例：disasm.py DUMP/ ap.elf 0xc0273b2a 8        → lbu a4,10(a0)
+#       disasm.py DUMP/ ap.elf do_check_chunk       → 看 cm.push{ra,s0-s2},-16 帧大小
+```
+或直接 objdump（等价）：
 ```bash
 riscv64-unknown-elf-objdump -d -C --start-address=<addr-0x10> --stop-address=<addr+0x20> <ap.elf>
 ```
 
 用途：
 - **ASSERT 场景**：确认是哪个 `OS_ASSERT`（同一函数常有多个，`li a1, <line>` 立即数 = `__LINE__`，对照 `g_osAssert.line` 双重确认）。本次案例：do_check_chunk 反汇编显示 `li a1,539` → 确认是 539 行 `p >= heap->base`
-- **EXCEPTION 场景**：确认崩溃指令类型（`lw`/`sw`/`ld`/`sd` 等），区分空指针/栈溢出/野指针
+- **EXCEPTION 场景**：确认崩溃指令类型（`lw`/`sw`/`lbu` 等），区分空指针/栈溢出/野指针；读表/读 struct 算术（如 `sh2add`/`lw,16`）核对直接原因
+- **帧大小核实**：`cm.push {ra,s0-sN},-N` 的 N 用于解释 fill-scan 水位为何偏大（见 Step 8b2）、重建溢出帧
 - **call site 验证**：确认某地址是否真为函数调用返回点（Step 4）
 
 ### Step 7：堆分析（UIS8852 死机高频根因 — 堆耗尽 / 元数据损坏）
@@ -252,23 +277,44 @@ dlmalloc DEBUG 一致性检查失败是本平台高频死机点。关键 assert�
 
 `dlmallocPrint` 内部遍历 free bin 会调用 `do_check_free_chunk → do_check_chunk`——所以**耗尽也会触发 539 assert**（遍历撞见链表异常），不要一见 539 就断定"独立 corruption"，先看堆使用率。
 
-### Step 8b：任务列表 + 栈水位（栈溢出 / 死锁 / 调度异常）
+### Step 8b：任务列表 + **线程**栈水位（线程栈溢出 / 死锁 / 调度异常）
 
 ```bash
 python "scripts/threads.py" <dump_dir> <ap.elf>
 ```
 
-枚举所有 `osThread_t`（按 TCB 特征**扫描法**，不依赖链表完整性）+ 每任务栈水位（RT-Thread magic 填充法）。
+枚举所有 `osThread_t`（按 TCB 特征**扫描法**，不依赖链表完整性）+ 每任务**线程栈**水位（RT-Thread magic 填充法）。
 
 | 发现 | 判定 |
 |---|---|
-| 某任务水位 > 90% | **栈溢出高风险**（可能破坏相邻堆/TCB） |
-| 被中断任务水位 > 90% | 栈溢出很可能就是根因 |
+| 某任务水位 > 90% | **线程栈溢出高风险**（可能破坏相邻堆/TCB） |
+| 被中断任务水位 > 90% | 线程栈溢出很可能就是根因 |
 | 全部任务 SUSPEND（无 READY） | **死锁**（找持锁者 / 关中断者） |
 | 高优先级任务长时间 RUNNING | **饿死**低优先级任务 |
-| 水位都正常 | 排除栈溢出，聚焦堆/逻辑 |
+| 水位都正常 | 排除**线程栈**溢出 → ⚠️ **但还要查系统/中断栈(Step 8b2)**，不要据此断言"排除栈溢出" |
 
-> 本次 dump 实测（用脚本扫描，任务数随扫描阈值/版本略有差异，关注水位与状态而非绝对数量）：最高水位 RTC 65%，无任务 >90% → 排除栈溢出。
+> ⚠️ `threads.py` 只覆盖**线程栈**。UIS8852 还有一块**系统/中断栈**（`__stack_start..__stack_end`，所有 ISR 跑在此），它不属于任何线程，`threads.py` 看不到——线程水位全正常不代表它没溢出。**线程栈正常时务必再跑 Step 8b2**，尤其是"某全局被解引用出非法值、且该值像代码指针/堆·SLOG 元数据"时（系统栈溢出踩相邻全局的指纹）。
+
+### Step 8b2：系统/中断栈水位 + 溢出踩相邻全局（线程栈正常时必查）
+
+```bash
+python "scripts/system_stack.py" <dump_dir> <ap.elf>
+```
+
+UIS8852 AP 在 DTCM 保留**一块**栈 `__stack_start..__stack_end`（`__stack_size`，常 2KB），**身兼二职**：①`__start` 设初始 SP=`__stack_end`（系统/启动栈，并预填 `0x24242424`）；②`switch_irq_sp`（`irq_entry`）每次中断把 SP 重置为 `__stack_end`（中断栈，所有 ISR 跑在此）。它是**非线程栈**，向下生长，越过 `__stack_start` 会**踩踏紧贴其下的最后一个 BSS 全局**。
+
+脚本输出：栈定位/大小/填充、**fill-scan 水位（上界，cm.push 帧底部不写时偏大）**、`__stack_start` 下方紧邻全局是否被栈帧内容污染、**[溢出溅射检测] 跨栈底扫描**（决定性：栈底以下是否出现返回地址 ra + 背景填充指纹 `0x24242424` 只存栈区、栈底以下为 BSS 零值）、最深栈帧调用链。
+
+> ⚠️ **别被"fill-scan 余量 12B"带偏**：cm.push 类帧只把 ra 写在帧顶、帧底部留空仍为填充，fill-scan 会把"帧内未写底部"误当未用栈，使余量偏大。**是否真溢出以[溢出溅射检测]为准**——受害全局(BSS)里只要出现 1 个返回地址即确证栈帧越过栈底（BSS 不可能自发产生代码地址）。可用 `peek.py` 跨栈底逐字核对（见"逐字核实"）。
+
+| 发现 | 判定 |
+|---|---|
+| 栈底以下(受害全局) 出现返回地址 ra / 背景填充指纹切换 | 🚨 **系统/中断栈已溢出（确证）**，栈帧内容溅射进该全局（根因） |
+| 紧邻全局含代码指针 + 与最深栈帧取值重叠（兜底启发式） | 🚨 系统栈溢出（高度疑似，用 `peek.py` 复核） |
+| fill-scan 余量 < 64B 但受害全局无 ra | **高危**：单次稍深中断即可越过栈底 |
+| fill-scan 余量充足 + 紧邻全局无栈帧特征值 | 排除系统/中断栈溢出 |
+
+> **根因方向（命中时）**：增大 `__stack_size`（DEBUG 版尤其，dlmalloc `do_check_*` + SLOG backtrace 深链吃栈）；中断/回调里避免动态分配与 backtrace 格式化；`__stack_start` 前加 guard/redzone 让溢出 trap 而非静默踩全局。典型触发：`Ps_LpmCallback`(LPM 心跳)→SLOG→DEBUG `dlMalloc`→`do_check_*` 在 2KB 中断栈上深链。完整方法论 + 物证（背景指纹、崩溃值=dlmalloc chunk-size）见 `references/stack-overflow-spill-guide.md`。
 
 ### Step 8c：代码完整性（EXCEPTION 场景必查 — 排除代码损坏）
 
@@ -323,6 +369,8 @@ python "scripts/trace_history.py" <dump_dir> <ap.elf>
 
 ### Step 9：根因定位
 
+> 守"分析原则"（见上文）：定位到的"根因"必须是**可改的具体点**，并答清 **谁/在哪/为什么**。决策树只回答了"是哪一类"（what），仍需继续钻到谁写的、在哪写的、为何写到这。证据不全时按原则 4 给下一步方向。
+
 综合 Step 1-8，按决策树定位根因：
 
 ```
@@ -376,24 +424,45 @@ python "$SKILL_DIR/scripts/uis8852_analyze.py" <dump_dir> <ap.elf>
 | 脚本 | 用途 | 关键产出 |
 |------|------|---------|
 | `common.py` | 公共模块（Mem 内存区+外设扫描、Symbols 符号+DWARF struct 偏移、工具链查找、addr2line/objdump） | 不直接运行 |
-| `run_all.py` | **一键跑全部 10 个分析脚本** + 编号归档 + `INDEX.md` + `_meta.json` + dump 反向 link | 全套证据 + 核对闭环 |
+| `run_all.py` | **一键跑全套分析脚本**（当前 12 个）+ 编号归档 + `INDEX.md` + `_meta.json` + dump 反向 link；交互工具 `disasm.py`/`peek.py` 不在其中 | 全套证据 + 核对闭环 |
 | `uis8852_analyze.py` | **起点**：panic 现场 + 寄存器 + IRQ + 启发式回溯 + 源码定位 | 崩溃定性 |
 | `cfi.py` | DWARF `.debug_frame` CFI 回溯引擎（库：`CFIUnwinder`/`unwind_exception`/`unwind_thread`） | 不直接运行 |
 | `unwind_cfi.py` | **DWARF CFI 确定性回溯**（首选，干净无噪声）：崩溃链 + 全任务逐线程链 | 精确调用链（含根因线程） |
 | `assert_reason.py` | **断言模式推理**：scheduler 栈检查 → 自动判定【哪个线程栈溢出】+ 根因链 | 精准结论（防归错线程） |
 | `unwind.py` | 帧感知栈回溯（prologue 启发式，CFI 缺失时回退）+ 当前 IRQ 权威确认 | 调用链、中断身份 |
-| `threads.py` | 任务列表（扫描法）+ 每任务栈水位 | 栈溢出 / 死锁 / 调度异常 |
+| `threads.py` | 任务列表（扫描法）+ 每任务**线程栈**水位 | **线程栈**溢出 / 死锁 / 调度异常 |
+| `system_stack.py` | **系统/中断栈**(`__stack_start..__stack_end`，非线程栈)水位 + 溢出踩相邻全局检测 | **系统/中断栈溢出**（threads.py 看不到；全局被踩成代码指针/堆元数据时必查） |
 | `trace_history.py` | **任务/中断切换历史**（崩溃前调度序列 + IRQ 风暴） | WDT/死锁/饿死的时序证据 |
 | `heap_state.py` | 堆状态（使用率）+ malloc trace ring + SLOG ISR 日志 | 耗尽度 + 堆消耗户 |
-| `heap_walker.py` | **堆物理遍历** + av_ bin-header 完整性 | 耗尽 vs 损坏判定 |
+| `heap_walker.py` | **堆物理遍历** + av_ bin-header 完整性 + **真实使用率**（排除 top wilderness，不再把大 top 误判为"几乎满"） | 耗尽 vs 损坏判定 |
 | `double_free_detect.py` | **double-free 自动判定**（dlmalloc.c:2066 downflow 场景）：取被 free 的 ptr，查块状态（下一块 PREV_INUSE + 空闲链表回指），区分 double-free vs 越界写 | double-free vs 越界写（2066 必跑） |
 | `wdt_reset.py` | 复位原因（gResetReson 位掩码）+ WDT 状态/寄存器 | 蓝屏 vs 真复位 / WDT 超时 |
 | `code_compare.py` | **代码完整性**（ELF 代码段 vs dump）+ crash PC spotlight | 排除/确认代码损坏（EXCEPTION 必查） |
 | `map_lookup.py` | **.map 符号解析**（ELF 缺失时的降级） | 仅地址→函数名（无 struct/源码行） |
+| `disasm.py` | **一键反汇编**（符号名或地址 `[+len]`）：自动找工具链 + 符号→地址 + `objdump_range`。**交互核实**用，不在 run_all | 崩溃指令/call site/`cm.push` 帧大小核实 |
+| `peek.py` | **任意内存 dump + 标注**（按字、标代码指针→函数/已知符号/填充模式）：字节级取证。**交互核实**用，不在 run_all | 受害区与栈帧的值对照、chunk-size/填充指纹 |
 
 ### 工具链
 
-RISC-V 工具链在 `idh.code/prebuilts/` 下（`riscv64-unknown-elf-addr2line.exe`/`objdump.exe`），脚本从 dump 目录向上查找。pyelftools 用于读 ELF `.symtab`/DWARF（脚本不依赖系统装 pyelftools 时需 `pip install pyelftools`）。
+RISC-V 工具链在 `idh.code/prebuilts/` 下（`riscv64-unknown-elf-addr2line.exe`/`objdump.exe`），脚本从 dump 目录向上查找。pyelftools 用于读 ELF `.symtab`/DWARF（脚本不依赖系统装 pyelftools 时需 `pip install pyelftools`）。`disasm.py`/`peek.py` 用同一套工具链（必须用项目配套的 objdump，否则不认 Zcmp `cm.push` 编码）。
+
+### 逐字核实（结论存疑时必做）
+
+`run_all.py` 出的是**预封装结论**；当某个结论需要逐字坐实（避免"水位 12B"这类读数误导，或要把崩溃值精确到某条指令/某个寄存器），用两个交互工具直接看原始字节/反汇编，**不要手搓 objdump 或 struct.unpack**：
+
+```bash
+# 1) 反汇编核实：崩溃指令是不是 lw/lbu/sw？call site 是不是 jal？某函数的帧大小（cm.push -N）？
+python "$SKILL_DIR/scripts/disasm.py" <dump_dir> <ap.elf> <符号|地址> [+len]
+#   例：disasm.py DUMP/ ap.elf Pdcp_SendPdu2Rlc +0x60      → 看 0xc0273b2a 是 lbu a4,10(a0)
+#       disasm.py DUMP/ ap.elf Rlc_CheckRbNode              → 看读表算术 sh2add/lw,16
+
+# 2) 字节 dump + 标注：受害全局里是不是栈帧内容？某值是不是 chunk-size/填充？
+python "$SKILL_DIR/scripts/peek.py" <dump_dir> <addr> [len=0x40] [<ap.elf>]
+#   例：peek.py DUMP/ 0x136b8 0x40 ap.elf   → +0x00=0xc9(小整数)、+0x14=代码→do_check_inuse_chunk+0xbe
+#   没 ELF 时只出 hex word；带 ELF 自动标代码指针/已知符号/填充模式
+```
+
+何时用：①反汇编对齐报告里引用的每条指令/每条调用边；②把"被踩全局/可疑值"逐字对照相邻栈帧；③核实 `cm.push` 帧大小以解释 fill-scan 水位为何偏大。详见 `references/stack-overflow-spill-guide.md`。
 
 ## 输出规范
 
@@ -416,4 +485,5 @@ RISC-V 工具链在 `idh.code/prebuilts/` 下（`riscv64-unknown-elf-addr2line.e
 - `references/stack-unwind-guide.md` — 帧感知回溯方法、Zcm prologue 解析、启发式扫描陷阱
 - `references/cfi-unwind-guide.md` — DWARF `.debug_frame` CFI 确定性回溯（首选）、两条种子路径（异常帧 vs tcb.sp 切换帧）、API、局限
 - `references/heap-corruption-guide.md` — 堆物理遍历、dlmalloc chunk/bin 机制、耗尽 vs 损坏判定树、malloc trace ring
+- `references/stack-overflow-spill-guide.md` — 系统/中断栈溢出溅射相邻全局的取证方法论（背景填充指纹、崩溃值=dlmalloc chunk-size、cm.push 帧布局、disasm/peek 核实）
 - `references/bug-report-template.md` — UIS8852 dump 分析报告模板

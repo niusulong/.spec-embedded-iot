@@ -20,9 +20,9 @@ stack, not from the trap ra.
 
 Usage:  python unwind.py <dump_dir> <ap.elf>
 """
-import os, sys, re, struct
+import os, sys, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from common import Mem, Symbols, find_toolchain, objdump_range, in_text
+from common import Mem, Symbols, get_tool, objdump_range, in_text, is_call_site
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -59,31 +59,11 @@ def parse_prologue(objdump_exe, elf, addr, peek=48):
     return frame, ra_off
 
 
-def is_call_site(mem, value):
-    try:
-        b1 = mem.read(value - 4, 1)[0]
-    except Exception:
-        return False
-    if b1 in (0xef, 0xe7, 0x67):
-        return True
-    try:
-        h2 = struct.unpack("<H", mem.read(value - 2, 2))[0]
-    except Exception:
-        return False
-    op = h2 & 0x3
-    if op == 1 and (h2 & 0x1FFC) != 0 and (h2 & 0xE000) == 0x2000:
-        return True
-    if op == 2 and (h2 & 0x0F80) != 0 and (h2 & 0xE000) == 0x8000:
-        return True
-    return False
-
-
 def main():
     mem = Mem(DUMP)
     syms = Symbols(ELF)
-    tc = find_toolchain(DUMP)
-    objdump = os.path.join(tc, "riscv64-unknown-elf-objdump.exe") if tc else ""
-    addr2line = os.path.join(tc, "riscv64-unknown-elf-addr2line.exe") if tc else ""
+    objdump = get_tool(DUMP, "riscv64-unknown-elf-objdump.exe")
+    addr2line = get_tool(DUMP, "riscv64-unknown-elf-addr2line.exe")
 
     def S(n): return syms.lookup(n)[0]
 
