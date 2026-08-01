@@ -22,7 +22,7 @@
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 (ARM Cortex-M + FreeRTOS) Crash Dump 分析：excep_store 解析、Fault Status 解码、FreeRTOS TCB 解析、LWIP memp 泄漏检测、DWARF 源码行号映射、objdump 反汇编上下文 |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 (Unisoc ARM Cortex-M3 + FreeRTOS) Crash Dump 分析：excepInfoStore 解析、ASSERT/HardFault 识别、PC/LR→源码行映射（pyelftools，无需 ARM 工具链）、FreeRTOS 任务栈溢出扫描、OSA 协议栈专用池扫描 |
 | `spec-uis8850-dump-analyzer` | UIS8850 死机、N706-STD 崩溃、AP PANIC、gBlueScreenRegs、osiPanic | UIS8850/N706-STD 平台 (Unisoc ARM Cortex-R + FreeRTOS) Crash Dump 分析：DTools ramdump 重建死机现场、ARM Thumb 栈回溯、FreeRTOS 栈溢出检测(0xa5a5a5a5)、CP 核 assert 经 IPC 上报、堆状态、ARM addr2line/objdump 源码映射 |
-| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常、g_osIrqNo | UIS8852/N706C 平台 (Unisoc RISC-V RV32 + RT-Thread) Crash Dump 分析：g_osAssert/g_osException 解析、DWARF CFI 确定性回溯、断言模式推理、dlmalloc 堆物理遍历、malloc trace ring 定位堆消耗户、RISC-V addr2line/objdump 源码映射 |
+| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常、g_osIrqNo | UIS8852/N706C 平台 (Unisoc RISC-V RV32 + RT-Thread) Crash Dump 分析：g_osAssert/g_osException 解析、DWARF CFI 确定性回溯、断言模式推理、dlmalloc 堆物理遍历、malloc trace ring 定位堆消耗户、**系统/中断栈溢出溅射检测**（受害 BSS 全局出现 ra 即确证）、交互式 disasm/peek 核实、RISC-V addr2line/objdump 源码映射 |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结，输出结构化代码总结文档（含 §8 关键字检索清单，供 bug-analyzer 错误码现查） |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成：目录结构映射、模块清单、技术栈识别、构建系统分析 |
 | `spec-init` | spec 初始化、spec 准备环境 | `.spec` 工作流环境初始化，创建基础目录结构；自动拉取/更新跨项目知识库（git clone / git pull --ff-only） |

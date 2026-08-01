@@ -38,7 +38,7 @@ python skills/spec-knowledge-archiver/scripts/kb.py archive
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 crash dump 分析（Cortex-M + FreeRTOS） |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 crash dump 分析（Unisoc Cortex-M3 + FreeRTOS） |
 | `spec-uis8850-dump-analyzer` | UIS8850 死机、N706-STD 崩溃、AP PANIC、gBlueScreenRegs、osiPanic | UIS8850/N706-STD 平台 crash dump 分析（Unisoc Cortex-R + FreeRTOS） |
-| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常、g_osIrqNo | UIS8852/N706C 平台 crash dump 分析（Unisoc RISC-V + RT-Thread） |
+| `spec-uis8852-dump-analyzer` | UIS8852 死机、N706C 崩溃、dlmalloc 断言、RISC-V 异常、g_osIrqNo | UIS8852/N706C 平台 crash dump 分析（Unisoc RISC-V + RT-Thread）：DWARF CFI 回溯、dlmalloc 堆遍历、系统/中断栈溢出溅射检测、交互式 disasm/peek |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码） |
 | `spec-code-summary` | spec 模块实现、spec 代码分析 | 单模块代码实现分析总结（含 §8 关键字检索清单） |
 | `spec-project-overview` | spec 项目概览、spec 了解项目 | 项目概览文档生成 |
