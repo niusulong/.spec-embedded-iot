@@ -36,4 +36,7 @@ jobs:
       - name: Run knowledge-archiver tests
         run: |
           cd skills/spec-knowledge-archiver/scripts
-          pytest test_archiver.py test_wiki.py test_e2e_retrieval.py test_e2e_agent_flow.py -v
+          # test_keyword_recall 依赖真实 knowledge/wiki/INDEX.md（私有子仓库，CI 无权拉取）；
+          # 本地有 knowledge 时跑，CI 用 --deselect 跳过。其余 56 项自包含。
+          pytest test_archiver.py test_wiki.py test_e2e_retrieval.py test_e2e_agent_flow.py -v \
+            --deselect test_e2e_retrieval.py::test_keyword_recall
