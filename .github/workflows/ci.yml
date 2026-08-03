@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    name: Tests & wiki lint (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      # knowledge/ 是独立 git 子仓库（主仓库 .gitignore 排除），CI 单独拉取以供 wiki lint
+      - name: Checkout knowledge subrepo
+        uses: actions/checkout@v4
+        with:
+          repository: niusulong/knowledge
+          path: knowledge
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      # pytest 比 unittest discover 更能处理各 test 文件相对 import（common/wiki 等）
+      - name: Run unit tests
+        run: pytest skills/ -v
+
+      - name: Wiki lint (raw↔wiki 一致性等)
+        run: python skills/spec-knowledge-archiver/scripts/kb.py wiki lint
+
+  line-endings:
+    name: Reject CRLF in tracked text files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No CRLF in .py/.json/.md/.js/.yaml
+        run: |
+          if git grep -lIP '\r$' -- '*.py' '*.json' '*.md' '*.js' '*.yaml' '*.yml' 2>/dev/null | head; then
+            echo "::error::Found CRLF line endings — run dos2unix or add .gitattributes"
+            exit 1
+          fi

@@ -1,5 +1,7 @@
 ---
 name: spec-knowledge-archiver
+version: 1.0
+author: niusulong
 description: >
   项目文档归档与 LLM-Wiki 维护工具。把项目 .spec/ 下的 bug 分析、需求方案、代码总结等
   原文保真归档到持久知识库（platform/{平台}/raw/），并引导 agent 按 LLM-Wiki 理念维护

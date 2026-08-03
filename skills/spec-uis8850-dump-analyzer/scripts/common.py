@@ -170,7 +170,13 @@ class Mem:
 
 # ----------------------------------------------------------------------------
 # ELF symbols + DWARF
-from elftools.elf.elffile import ELFFile
+# pyelftools 软依赖：未安装时模块仍可 import（非 ELF 功能可用），ELF 相关功能调用时报清晰错误
+HAS_PYELFTOOLS = False
+try:
+    from elftools.elf.elffile import ELFFile
+    HAS_PYELFTOOLS = True
+except ImportError:
+    ELFFile = None
 
 
 class Symbols:

@@ -34,8 +34,10 @@ if %ERRORLEVEL% equ 0 (
     exit /b %ERRORLEVEL%
 )
 
-REM No bash found - exit silently rather than error
-REM (plugin still works, just without SessionStart context injection)
+REM No bash found - warn so user knows SessionStart injection is skipped,
+REM but do NOT fail the hook (plugin still works without auto-injected context).
+echo [spec-embedded-iot] WARNING: bash not found on PATH - SessionStart hook skipped >&2
+echo [spec-embedded-iot] Install Git for Windows (or add bash to PATH) to enable auto-loading of spec-using-agents >&2
 exit /b 0
 CMDBLOCK
 

@@ -1,7 +1,7 @@
 {
   "name": "agents",
   "version": "1.14.0",
-  "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结，以及\"需求→方案→实施计划\"完整需求实现链路，配合跨项目知识库语义检索",
+  "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结，以及\"需求→方案→实施计划\"完整需求实现链路，配合跨项目知识库（LLM-Wiki 渐进加载）",
   "author": {
     "name": "niusulong"
   },
@@ -18,7 +18,7 @@
   "interface": {
     "displayName": "Agents",
     "shortDescription": "Embedded IoT development skills and knowledge base",
-    "longDescription": "Specialized skills for embedded software development: bug root-cause analysis from logs, ARM crash dump analysis (Cortex-R and Cortex-M), code summarization, persistent knowledge base with vector semantic search, coding standards, and requirement management. Organized by chip platform (EC626, N58, UIS8852).",
+    "longDescription": "Specialized skills for embedded software development: bug root-cause analysis from logs, crash dump analysis (ARM Cortex-R/Cortex-M and RISC-V), code summarization, persistent knowledge base with progressive LLM-Wiki loading (no vector DB), coding standards, and requirement management. Organized by chip platform (EC626, ASR1603, QCX216, UIS8850, UIS8852).",
     "developerName": "niusulong",
     "category": "Embedded",
     "capabilities": [

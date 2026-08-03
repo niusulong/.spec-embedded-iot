@@ -38,7 +38,7 @@ This plugin provides specialized skills for embedded software development:
 
 ## How to Use Skills
 
-Use the `activate_skill` tool to load skills. Skill metadata is available at session start.
+Invoke skills through your native tooling, following the descriptions above (a skill's content loads contextually when a task matches). For tool-name mapping on other platforms, see `skills/spec-using-agents/references/codex-tools.md` and `opencode-tools.md`.
 
 ## Knowledge Base Access
 
@@ -51,5 +51,6 @@ Knowledge base retrieval uses **progressive loading** (no vector DB / no CLI sea
 Archive `.spec/` documents to the raw area:
 
 ```bash
-python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive
+# --project: project root dir  --type bug|requirement|code-summary|all  --all: archive all (incremental, skips unchanged by hash)
+python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive --project {project-root} --type bug --all
 ```

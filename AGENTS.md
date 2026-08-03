@@ -54,7 +54,8 @@ Knowledge base retrieval uses **progressive loading** (no vector DB / no CLI sea
 Archive `.spec/` documents to the raw area:
 
 ```bash
-python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive
+# --project: project root dir  --type bug|requirement|code-summary|all  --all: archive all (incremental, skips unchanged by hash)
+python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/kb.py archive --project {project-root} --type bug --all
 ```
 
 Knowledge base path: `~/.spec-embedded-iot/knowledge/raw/platform/{platform}/` (raw archive) and `~/.spec-embedded-iot/knowledge/wiki/` (global wiki).

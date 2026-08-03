@@ -75,7 +75,8 @@ knowledge/
 **归档 `.spec/` 文档**：
 
 ```bash
-python skills/spec-knowledge-archiver/scripts/kb.py archive
+# --project：项目根目录  --type bug|requirement|code-summary|all  --all：归档全部（增量按 hash 跳过未变）
+python skills/spec-knowledge-archiver/scripts/kb.py archive --project {项目根目录} --type bug --all
 ```
 
 ## 项目结构

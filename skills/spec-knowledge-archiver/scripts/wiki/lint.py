@@ -20,6 +20,8 @@ Modifications for spec-embedded-iot:
     - index-out-of-sync:      INDEX.md 列出的条目无对应 entries/ 文件（或反之）
     - missing-home:           wiki/Home.md 不存在
     - missing-index:          wiki/INDEX.md 不存在
+    - raw-without-wiki-entry: raw/platform/ 有条目但 wiki/entries/ 无对应精炼页
+                              （raw 自动归档、wiki 人工补写，本项对账防漂移）
 """
 
 import os
@@ -107,6 +109,74 @@ def _resolve_wikilink(target, current_file, all_md_files):
             return f
 
     return None
+
+
+def _norm_name(s):
+    """标准化名称用于宽松匹配：去分隔符、小写。"""
+    return re.sub(r"[_\-\s]+", "", str(s)).lower()
+
+
+def _raw_entry_has_wiki(raw_entry, plat, wiki_files):
+    """raw 条目目录名是否在 wiki_files（{plat}_*.md）中有对应精炼页。
+
+    宽松匹配（wid 优先；NA/无 wid 用标准化 desc 子串），宁可漏报不误报。
+    """
+    tokens = re.split(r"[_\s]+", raw_entry)
+    wid = next((t for t in tokens if t.isdigit() and len(t) >= 6), None)
+    for wf in wiki_files:
+        if wid and wid in wf:
+            return True
+        wf_body = wf[len(plat) + 1:-3] if wf.endswith(".md") else wf[len(plat) + 1:]
+        wf_body_norm = _norm_name(wf_body)
+        raw_norm = _norm_name(raw_entry)
+        if len(wf_body_norm) >= 8 and (wf_body_norm in raw_norm or raw_norm in wf_body_norm):
+            return True
+    return False
+
+
+def _check_raw_wiki_drift(report, wiki_root, raw_root):
+    """检测 raw→wiki 漂移：raw 有条目但 wiki/entries 无对应精炼页。
+
+    raw 由 kb.py archive 自动写入，wiki entry 靠人工/agent 补写——两者解耦，
+    本检查在 lint 时对账，防止"raw 增长、wiki 落后"的隐形漏洞。
+    """
+    if not raw_root or not os.path.isdir(raw_root):
+        return
+    platform_root = os.path.join(raw_root, "platform")
+    if not os.path.isdir(platform_root):
+        return
+
+    type_dirs = ("bug-solutions", "code-summary", "requirement-solutions")
+    drift_count = 0
+    for plat in sorted(os.listdir(platform_root)):
+        plat_path = os.path.join(platform_root, plat)
+        if not os.path.isdir(plat_path):
+            continue
+        for typ in type_dirs:
+            typ_path = os.path.join(plat_path, typ)
+            if not os.path.isdir(typ_path):
+                continue
+            raw_entries = [d for d in os.listdir(typ_path)
+                           if os.path.isdir(os.path.join(typ_path, d))]
+            if not raw_entries:
+                continue
+            wiki_type_dir = os.path.join(wiki_root, "entries", typ)
+            wiki_files = []
+            if os.path.isdir(wiki_type_dir):
+                wiki_files = [f for f in os.listdir(wiki_type_dir)
+                              if f.endswith(".md") and f.startswith(plat + "_")]
+            for entry in sorted(raw_entries):
+                if _raw_entry_has_wiki(entry, plat, wiki_files):
+                    continue
+                drift_count += 1
+                report.add("WARN", "raw-without-wiki-entry",
+                           f"raw 有条目但 wiki/entries/{typ}/ 无对应精炼页："
+                           f"{plat}/{typ}/{entry}（归档后需补写 entry + 更新 INDEX）",
+                           f"entries/{typ}/")
+    if drift_count:
+        report.add("INFO", "raw-wiki-drift-summary",
+                   f"共 {drift_count} 个 raw 条目疑似缺少 wiki 精炼页"
+                   f"（宽松匹配，可能含少量误报，请人工核对）", "")
 
 
 def lint_wiki(wiki_root):
@@ -220,6 +290,10 @@ def lint_wiki(wiki_root):
                 if not os.path.isfile(full_target):
                     report.add("WARN", "index-out-of-sync",
                                f"INDEX.md 链接 '{href}' 指向的文件不存在", "INDEX.md")
+
+    # 6. raw→wiki 漂移检测：raw 区有条目但 wiki/entries 无对应精炼页
+    raw_root = os.path.join(os.path.dirname(os.path.abspath(wiki_root)), "raw")
+    _check_raw_wiki_drift(report, wiki_root, raw_root)
 
     return report
 

@@ -2,5 +2,6 @@
   "name": "agents",
   "version": "1.14.0",
   "type": "module",
-  "main": ".opencode/plugins/agents.js"
+  "main": ".opencode/plugins/agents.js",
+  "private": true
 }

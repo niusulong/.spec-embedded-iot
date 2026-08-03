@@ -9,7 +9,7 @@ description: >-
   也适用于：ARM 崩溃寄存器解读、栈回溯分析、PSRAM代码完整性验证、
   Cortex-R 异常处理分析、TRACE32 dump解析、嵌入式死机定位、
   任何涉及 PC/LR/SP 地址解码的死机问题，即使用户没有明确说出"dump"。
-  仅适用于 ASR 平台 (Cortex-R)，不适用于 EC 平台 (Cortex-M)。
+  仅适用于 ASR 平台 (Cortex-R)。其它平台改用对应 dump 分析器：EC626/EC616 (Cortex-M) → spec-ec626-dump-analyzer；QCX216/N706D (Unisoc Cortex-M3) → spec-qcx216-dump-analyzer；UIS8850/N706-STD (Unisoc Cortex-R) → spec-uis8850-dump-analyzer；UIS8852/N706C (Unisoc RISC-V) → spec-uis8852-dump-analyzer。若无 crash dump（仅 AT/串口日志）改用 spec-bug-analyzer 做日志级根因分析；若需精确定位内存泄漏代码位置改用 spec-memory-leak-analyzer。
   英文触发词: decode crash registers, analyze crash dump, disassemble AXF,
   stack overflow analysis, PSRAM corruption, Cortex-R exception, ARM fault analysis,
   trace32 dump, PC 0x7e, HardFault handler, embedded crash diagnosis, WDT timeout.

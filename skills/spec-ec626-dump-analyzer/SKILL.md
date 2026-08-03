@@ -12,7 +12,7 @@ description: >
   栈溢出、crash dump、看门狗超时、WDT、设备重启、excep_store、
   内存池耗尽、memp_malloc fail、内存不足、LWIP OOM、内存泄漏、
   trace_node、大块未释放、堆分配追踪。
-  仅适用于 EC 平台 (Cortex-M)，不适用于 ASR Cortex-R。
+  仅适用于 EC 平台 (Cortex-M)。其它平台改用对应 dump 分析器：ASR1603 (Cortex-R) → spec-asr1603-dump-analyzer；QCX216/N706D (Unisoc Cortex-M3) → spec-qcx216-dump-analyzer；UIS8850/N706-STD (Unisoc Cortex-R) → spec-uis8850-dump-analyzer；UIS8852/N706C (Unisoc RISC-V) → spec-uis8852-dump-analyzer。若无 crash dump（仅 AT/串口日志）改用 spec-bug-analyzer 做日志级根因分析；若需精确定位内存泄漏代码位置改用 spec-memory-leak-analyzer。
 version: 1.1
 ---
 

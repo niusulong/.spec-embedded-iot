@@ -1,5 +1,7 @@
 ---
 name: spec-uis8852-dump-analyzer
+version: 1.2
+author: niusulong
 description: >
   UIS8852 / N706C (Unisoc, RISC-V RV32 + RT-Thread) 平台 crash dump 分析技能。
   从 DTools 抓取的 ramdump（按地址命名的 .bin 内存区 + AP.elf + .map）重建死机现场：
@@ -11,8 +13,10 @@ description: >
   "PSRAM 堆耗尽"、"LPM 中断死机" 时使用——只要意图是"定位 UIS8852/N706C 平台的死机根因"，
   即使没明说 "分析dump" 也应触发。即使用户只是粘贴了 dtools.log 或一组崩溃寄存器、
   或提到 "设备死机需要分析 8852 dump"，也应触发。
-  仅适用于 Unisoc UIS8852/N706C (RISC-V) 平台；ASR (Cortex-R) 用 spec-asr1603-dump-analyzer，
-  EC (Cortex-M) 用 spec-ec626-dump-analyzer。
+  仅适用于 Unisoc UIS8852/N706C (RISC-V) 平台。其它平台改用对应 dump 分析器：ASR1603 (Cortex-R) 用 spec-asr1603-dump-analyzer，
+  EC626/EC616 (Cortex-M) 用 spec-ec626-dump-analyzer，QCX216/N706D (Unisoc Cortex-M3) 用 spec-qcx216-dump-analyzer，
+  UIS8850/N706-STD (Unisoc Cortex-R) 用 spec-uis8850-dump-analyzer。若无 crash dump（仅 AT/串口日志）改用 spec-bug-analyzer；
+  若需精确定位内存泄漏代码位置改用 spec-memory-leak-analyzer。
 ---
 
 通过 DTools 抓取的 ramdump 文件，分析 UIS8852 / N706C（Unisoc RISC-V + RT-Thread）AP 核的死机根因。

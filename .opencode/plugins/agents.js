@@ -70,7 +70,7 @@ export const AgentsPlugin = async ({ client, directory }) => {
 When skills reference tools you don't have, substitute OpenCode equivalents:
 - \`Skill\` tool → OpenCode's native \`skill\` tool
 - \`Read\`, \`Write\`, \`Edit\`, \`Bash\` → Your native tools
-- Knowledge base search → run: \`python ~/.spec-embedded-iot/skills/spec-knowledge-archiver/scripts/embed_search.py "query"\`
+- Knowledge base search → progressive LLM-Wiki loading: read \`~/.spec-embedded-iot/knowledge/wiki/INDEX.md\` → \`entries/*.md\` → \`raw/\` (no vector DB, no CLI search)
 
 Use OpenCode's native \`skill\` tool to list and load skills.`;
 

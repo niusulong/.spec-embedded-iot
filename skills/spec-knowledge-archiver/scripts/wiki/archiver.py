@@ -100,8 +100,9 @@ def compute_entry_hash(entry_path, md_files):
         try:
             with open(filepath, "rb") as f:
                 h.update(f.read())
-        except OSError:
-            pass
+        except OSError as e:
+            # 不可读文件不能静默——会让 hash 偏小、增量归档误判"未变"而永远跳过该条目
+            print("[warn] compute_entry_hash 跳过不可读文件 %s: %s" % (md_file, e))
     return h.hexdigest()
 
 

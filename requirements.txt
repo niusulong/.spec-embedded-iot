@@ -1,0 +1,17 @@
+# spec-embedded-iot Python 运行时依赖（按技能分组）
+# 一次性安装全部：pip install -r requirements.txt
+# 仅用个别技能时，按注释按需安装即可。
+
+# ── Crash Dump 分析器（ELF / DWARF / .symtab 解析）─────────────────────────
+# 用于 spec-ec626 / spec-qcx216 / spec-uis8850 / spec-uis8852 dump 分析器
+pyelftools>=0.29
+
+# ── 反汇编（QCX216 强烈推荐，其它平台可选）────────────────────────────────
+capstone>=5.0
+
+# ── 报文解析（spec-bug-analyzer 的 pcap_analyzer，替代 Wireshark）─────────
+scapy>=2.5
+
+# ── 知识库归档（spec-knowledge-archiver）──────────────────────────────────
+# 注：skills/spec-knowledge-archiver/requirements.txt 是本项的子集
+PyYAML>=6.0

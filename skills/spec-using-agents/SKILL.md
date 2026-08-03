@@ -1,5 +1,7 @@
 ---
 name: spec-using-agents
+version: 1.0
+author: niusulong
 description: Use when starting any conversation - establishes how to find and use embedded IoT skills and knowledge base, requiring Skill tool invocation before ANY response including clarifying questions
 ---
 
@@ -57,8 +59,8 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 | `spec-requirement-splitter` | spec 拆分需求 | Split complex requirements into smaller units |
 | `spec-solution-designer` | spec 设计方案、spec 技术方案 | Requirement → embedded technical solution (architecture / RTOS tasks / resource budget / protocol-stack compat / risks) |
 | `spec-implementation-planner` | spec 实施计划、spec 排期 | Delegates to superpowers:writing-plans for a code-level executable plan (coding-standard compliant, spec output path, TDD stripped for embedded) |
-| `skill-creator` | 创建技能、create skill | Skill creation guide (meta-skill) |
-| `esafenet-file-io` | esafenet、加密文件 | EsafeNet encrypted file transparent read/write (Windows) |
+
+> External companion skills (installed separately, **not** part of this repo): `skill-creator` (skill creation), `esafenet-file-io` (EsafeNet/绿盾 encrypted file transparent read/write, Windows only — referenced by `spec-project-overview`).
 
 ## Knowledge Base
 
@@ -75,7 +77,8 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 **Archive `.spec/` documents:**
 
 ```bash
-python ../spec-knowledge-archiver/scripts/kb.py archive
+# --project: project root  --type bug|requirement|code-summary|all  --all: archive all (incremental)
+python ../spec-knowledge-archiver/scripts/kb.py archive --project {project-root} --type bug --all
 ```
 
 **Platform detection:** Infer from project path (e.g., `D:\EC626\` → `EC626`) or ask user.

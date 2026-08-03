@@ -7,8 +7,10 @@ description: >-
   "连接失败/断连"、"AT 报 ERROR"、"模块重启/死机怎么排查"时使用——只要用户意图是
   "找出问题为什么发生"，即使没有明说"分析bug"也应触发。当日志与代码分析穷尽仍无法定位根因时，
   询问用户是否检索历史案例库（不自动检索）。
-  边界：若用户直接给出 crash dump 文件、要求解析 PC/LR/SP/堆栈寄存器或 Cortex-R/M 异常反汇编，
-  改用 spec-ec626-dump-analyzer（EC616/EC626/Cortex-M）或 spec-asr1603-dump-analyzer（ASR/Cortex-R）；
+  边界：若用户直接给出 crash dump 文件、要求解析 PC/LR/SP/堆栈寄存器或异常反汇编，
+  按平台改用对应 dump 分析器——EC626/EC616（Cortex-M）用 spec-ec626-dump-analyzer、
+  ASR1603（Cortex-R）用 spec-asr1603-dump-analyzer、QCX216/N706D（Unisoc Cortex-M3）用 spec-qcx216-dump-analyzer、
+  UIS8850/N706-STD（Unisoc Cortex-R）用 spec-uis8850-dump-analyzer、UIS8852/N706C（Unisoc RISC-V）用 spec-uis8852-dump-analyzer；
   若分析确认根因是内存泄漏且需要精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
 version: 3.8
@@ -54,9 +56,11 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 |----------------------|----------------------|-----------|
 | 含 `EC626`（如 `EC626`、`ec626_firmware`） | `EC626` | Cortex-M + FreeRTOS |
 | 含 `ASR1603` | `ASR1603` | Cortex-R + ThreadX |
+| 含 `QCX216` 或 `N706D` | `QCX216` | Cortex-M3 + FreeRTOS（Unisoc） |
+| 含 `UIS8850` 或 `N706-STD` | `UIS8850` | Cortex-R + FreeRTOS（Unisoc） |
+| 含 `UIS8852` 或 `N706C` | `UIS8852` | RISC-V RV32 + RT-Thread（Unisoc） |
+| 含 `UIS8910` 或 `RDA` | `RDA_UIS8910DM_RLS` | — |
 | 含 `N58` | `N58` | — |
-| 含 `UIS8850` | `UIS8850` | — |
-| 含 `UIS8852` | `UIS8852` | — |
 
 匹配规则：**精确匹配 > 大小写不敏感包含**，命中唯一目录即采用。仓库名同时命中多个目录、或与任何目录都无交集（如多平台 monorepo、仓库名为通用代号）时，**直接询问用户所属平台，不要默认假设**。
 
@@ -64,12 +68,17 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 
 死机/崩溃按**架构大类**分派到对应 dump 技能，与上述检索平台名相互独立：
 
-| 架构大类 | 代表检索平台 | dump 技能 |
-|---------|-------------|----------|
-| **EC 系**（Cortex-M + FreeRTOS） | `EC626` | `spec-ec626-dump-analyzer` |
-| **ASR 系**（Cortex-R + ThreadX） | `ASR1603` | `spec-asr1603-dump-analyzer` |
+死机/崩溃按**平台**直接分派到对应 dump 技能（Unisoc 三平台架构各异——QCX216 是 Cortex-M3、UIS8850 是 Cortex-R、UIS8852 是 RISC-V——不能用单一架构大类概括，故按平台而非架构大类分派）：
 
-架构大类优先由检索平台推断（`EC626`→EC 系、`ASR1603`→ASR 系）。其余平台（`N58`/`UIS8850`/`UIS8852`）的架构归属需结合日志线索判断或询问用户；日志线索（`memp_malloc`/`excep_store`/`tcpip_thread`/`nv_` 倾向 EC 系；`tx_thread`/`[threadx]`/PSRAM/`DataAbort` 倾向 ASR 系）仅作交叉印证，不作为首要识别依据。
+| 平台 | 架构/系统 | dump 技能 |
+|------|-----------|----------|
+| `EC626` | Cortex-M + FreeRTOS | `spec-ec626-dump-analyzer` |
+| `ASR1603` | Cortex-R + ThreadX | `spec-asr1603-dump-analyzer` |
+| `QCX216`（N706D） | Cortex-M3 + FreeRTOS（Unisoc） | `spec-qcx216-dump-analyzer` |
+| `UIS8850`（N706-STD） | Cortex-R + FreeRTOS（Unisoc） | `spec-uis8850-dump-analyzer` |
+| `UIS8852`（N706C） | RISC-V RV32 + RT-Thread（Unisoc） | `spec-uis8852-dump-analyzer` |
+
+分派目标优先由检索平台推断（上表）。日志线索（`memp_malloc`/`excep_store`/`tcpip_thread`/`nv_` 倾向 EC626；`tx_thread`/`[threadx]`/PSRAM/`DataAbort` 倾向 ASR1603；`osiPanic`/`gBlueScreenRegs`/`g_osAssert`/DTools ramdump 倾向 Unisoc 系）仅作交叉印证，不作为首要识别依据。
 
 ## 执行流程
 
@@ -116,12 +125,15 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 
 这一步既避免在未覆盖现场的日志里空搜，也能在"按时间 grep 在另一份日志落空"时第一反应是查覆盖率/时钟、而非反复改 grep。
 
-**死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按「平台识别 → 2」确定的**架构大类**分派深度分析：
+**死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按「平台识别 → 2」确定的**平台**分派到对应 dump 分析器做深度分析：
 
-- **EC 系**（Cortex-M + FreeRTOS，如 `EC626`）→ 引导使用 `spec-ec626-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
-- **ASR 系**（Cortex-R + ThreadX，如 `ASR1603`）→ 引导使用 `spec-asr1603-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
+- `EC626`/`EC616`（Cortex-M + FreeRTOS）→ `spec-ec626-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
+- `ASR1603`（Cortex-R + ThreadX）→ `spec-asr1603-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
+- `QCX216`/`N706D`（Unisoc Cortex-M3 + FreeRTOS）→ `spec-qcx216-dump-analyzer`（excepInfoStore 解析、ASSERT/HardFault、PC/LR→源码行、FreeRTOS 栈溢出扫描）
+- `UIS8850`/`N706-STD`（Unisoc Cortex-R + FreeRTOS）→ `spec-uis8850-dump-analyzer`（gBlueScreenRegs、osiPanic、ARM Thumb 栈回溯、栈溢出 0xa5a5a5a5、CP assert 经 IPC）
+- `UIS8852`/`N706C`（Unisoc RISC-V + RT-Thread）→ `spec-uis8852-dump-analyzer`（g_osAssert/g_osException、DWARF CFI 回溯、dlmalloc 堆遍历、系统/中断栈溢出溅射检测）
 
-> `spec-dump-analyzer` 已拆分为上述两个平台专属技能，不要引用旧名称。本技能仍可继续做日志层的时序与现象分析，与 dump 分析器互补。
+> 平台无法确定时询问用户（不要默认假设）。本技能仍可继续做日志层的时序与现象分析，与 dump 分析器互补。
 
 **大文件处理**：日志 ≥25KB 时用 `scripts/log_analyzer.py` 而非直接读取（脚本用法见 `references/log-analyzer-guide.md`）。
 

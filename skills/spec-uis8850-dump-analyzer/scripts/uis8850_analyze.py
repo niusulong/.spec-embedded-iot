@@ -68,7 +68,7 @@ def main():
             if end < 0: end = i + 100
             s = psram[i:end]
             try: txt = s.decode("utf-8", "replace")
-            except: txt = repr(s)
+            except Exception: txt = repr(s)
             if len(txt) > 10:
                 found.add(txt)
             pos = i + 1
@@ -187,7 +187,7 @@ def main():
                     if ":" in s:
                         addr_part = s.split(":")[0].strip()
                         try: hook_callsite = int(addr_part, 16)
-                        except: pass
+                        except Exception: pass
             if not magic_found:
                 print("  (未在 vTaskSwitchContext 范围内找到 %s 检测, 可能函数更大)" % magic_hex)
             # vApplicationStackOverflowHook 是否 tail-call osiPanic

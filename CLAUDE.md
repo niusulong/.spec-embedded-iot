@@ -26,7 +26,8 @@
 归档 `.spec/` 文档：
 
 ```bash
-python skills/spec-knowledge-archiver/scripts/kb.py archive
+# --project：项目根目录  --type bug|requirement|code-summary|all  --all：归档全部（增量按 hash 跳过未变）
+python skills/spec-knowledge-archiver/scripts/kb.py archive --project {项目根目录} --type bug --all
 ```
 
 ## 可用技能
@@ -50,8 +51,8 @@ python skills/spec-knowledge-archiver/scripts/kb.py archive
 | `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案、技术选型 | 需求 → 嵌入式技术方案（架构/RTOS任务/资源预算/协议栈兼容/接口/风险） |
 | `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 委托 superpowers:writing-plans 产出代码级可执行计划（编码规范合规 + spec 路径 + 去 TDD 改嵌入式验证） |
 | `spec-using-agents` | （会话启动时自动加载） | 元技能：所有技能入口与使用规则、知识库访问、平台工具映射（Codex/OpenCode） |
-| `skill-creator` | 创建技能、create skill | 技能创建指南（元技能） |
-| `esafenet-file-io` | esafenet、加密文件、绿盾 | EsafeNet 加密文件透明读写（仅 Windows） |
+
+> 外部配套技能（需单独安装，**非本仓提供**）：`skill-creator`（技能创建）、`esafenet-file-io`（EsafeNet/绿盾加密文件透明读写，仅 Windows，被 spec-project-overview 引用）。
 
 ## 技能调用规则
 

@@ -1,6 +1,8 @@
 ---
 name: spec-qcx216-dump-analyzer
-description: QCX216 / N706D（Unisoc ARM Cortex-M3 + FreeRTOS）平台 crash dump 分析技能。从 Unisoc DTools 抓取的 RamDumpData_*.bin 重建死机现场：excepInfoStore 异常存储解析、ASSERT(Func/Line/Val)/HardFault 识别、PC/LR→源码行映射（pyelftools，无需 ARM 工具链）、FreeRTOS 当前任务与栈溢出扫描、调用链还原。当用户说「spec 分析dump」「QCX216 死机」「N706D 崩溃」「Unisoc ARM dump」「excepInfoStore」「OsaCreateFastSignal assert」「AP assert」「interrupt assert」「RamDumpData」「设备死机需要分析 QCX216/N706D dump」时使用——只要意图是「定位 QCX216/N706D 平台的死机根因」，即使没明说「分析dump」也应触发。即使用户只是粘贴了一组寄存器值或提到设备死机需要分析，也应触发。仅适用于 QCX216/N706D（Unisoc Cortex-M3 + FreeRTOS）；ASR(Cortex-R) 用 spec-asr1603-dump-analyzer，EC(Cortex-M+EC工具链) 用 spec-ec626-dump-analyzer，UIS8852/N706C(RISC-V) 用 spec-uis8852-dump-analyzer。
+version: 1.0
+author: niusulong
+description: QCX216 / N706D（Unisoc ARM Cortex-M3 + FreeRTOS）平台 crash dump 分析技能。从 Unisoc DTools 抓取的 RamDumpData_*.bin 重建死机现场：excepInfoStore 异常存储解析、ASSERT(Func/Line/Val)/HardFault 识别、PC/LR→源码行映射（pyelftools，无需 ARM 工具链）、FreeRTOS 当前任务与栈溢出扫描、调用链还原。当用户说「spec 分析dump」「QCX216 死机」「N706D 崩溃」「Unisoc ARM dump」「excepInfoStore」「OsaCreateFastSignal assert」「AP assert」「interrupt assert」「RamDumpData」「设备死机需要分析 QCX216/N706D dump」时使用——只要意图是「定位 QCX216/N706D 平台的死机根因」，即使没明说「分析dump」也应触发。即使用户只是粘贴了一组寄存器值或提到设备死机需要分析，也应触发。仅适用于 QCX216/N706D（Unisoc Cortex-M3 + FreeRTOS）。其它平台改用对应 dump 分析器：ASR1603(Cortex-R) 用 spec-asr1603-dump-analyzer，EC626/EC616(Cortex-M+EC工具链) 用 spec-ec626-dump-analyzer，UIS8850/N706-STD(Unisoc Cortex-R) 用 spec-uis8850-dump-analyzer，UIS8852/N706C(RISC-V) 用 spec-uis8852-dump-analyzer。若无 crash dump（仅 AT/串口日志）改用 spec-bug-analyzer；若需精确定位内存泄漏代码位置改用 spec-memory-leak-analyzer。
 ---
 
 # QCX216 / N706D Dump 分析
