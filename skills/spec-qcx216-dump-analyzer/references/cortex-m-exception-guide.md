@@ -20,19 +20,22 @@ Fault Status 寄存器解码、异常栈帧格式。**ASSERT 场景不涉及本�
 
 ## 异常栈帧（Cortex-M3 自动压栈）
 
-进入异常时硬件自动压入 **当前栈**（MSP 或 PSP，由 EXC_RETURN 决定）8 个字：
+进入异常时硬件自动压入 **当前栈**（MSP 或 PSP，由 EXC_RETURN 决定）8 个字。
+压栈顺序：硬件依次压 R0,R1,R2,R3,R12,LR,PC,xPSR，**R0 在最低地址、xPSR 在最高地址**：
 
 ```
-SP + 0x00  xPSR
-SP + 0x04  PC      <- 异常发生时将要执行的指令（崩溃点）
-SP + 0x08  LR      <- 返回地址（调用者）
-SP + 0x0C  R12
-SP + 0x10  R3
-SP + 0x14  R2
-SP + 0x18  R1
-SP + 0x1C  R0      <- 函数参数（assert Val 常在此）
+SP + 0x00  R0      <- 函数参数（assert Val 常在此；HardFault 的 fault 信息也在此）
+SP + 0x04  R1
+SP + 0x08  R2      <- 常是崩溃指令的访存地址/指针
+SP + 0x0C  R3
+SP + 0x10  R12
+SP + 0x14  LR      <- 返回地址（调用者，崩溃函数的 caller）
+SP + 0x18  PC      <- 异常发生时将要执行的指令（崩溃点）★ 最关键
+SP + 0x1C  xPSR    <- bit24 Thumb 位应置位（合法帧的必要条件，0x21xxxxxx）
 ```
-压栈顺序是 R0 在低地址、xPSR 在高地址（满递减栈）。`PC` 是最关键的崩溃定位地址。
+
+> ⚠️ 注意是 **R0 在低地址、xPSR 在高地址**（曾画反过，导致帧还原错误）。验证：PC 落在 ELF
+> 代码段 + xPSR bit24=1 + LR 是合法调用返回点，三者同时成立才确认帧正确。
 
 ## EXC_RETURN（判断 MSP/PSP/模式）
 
@@ -77,24 +80,37 @@ SP + 0x1C  R0      <- 函数参数（assert Val 常在此）
 - `bit8 UNALIGNED`：未对齐访问
 - `bit9 DIVBYZERO`：除零
 
-## 在 QCX216 dump 中如何获取
+## 在 QCX216 dump 中还原 HardFault 现场
 
-当前核心版脚本对 HardFault 用「寄存器快照区代码地址扫描」定位 PC/LR 候选
-（excepInfoStore 头部捕获的 Flash 代码地址）。精确的栈帧/fault 寄存器偏移
-随固件版本变化，需要 **HardFault 样本**进一步逆向 excepInfoStore 中
-`CFSR/HFSR/MMFAR/BFAR` 与栈帧 `{R0..R3,R12,LR,PC,xPSR}` 的确切位置。
+excepInfoStore 头部除 magic 外，散落异常时刻的关键寄存器/状态。HardFault 场景关键字段：
 
-**临时手段**：拿到 HardFault dump 后，可在 excepInfoStore 区域人工查找
-- `0xE000ED2C` 附近的值（HFSR，若被转储）
-- `0xE000ED28` 附近的值（CFSR）
-- 栈帧特征：连续 8 个字，其中 PC/LR 落在 ELF 代码区，xPSR 高字节常为 `0x21`/`0x?`
+| 字段 | 含义 | 识别方法 |
+|------|------|---------|
+| magic1 | 有效异常转储 | store 首字 = `0xEC112013` |
+| EXC_RETURN | 异常返回码（定 MSP/PSP/模式） | 扫 store 头部找值 ∈ {`0xFFFFFFF1`, `0xFFFFFFF9`, `0xFFFFFFFD`} |
+| 异常帧 SP | 崩溃任务/主栈的 SP | EXC_RETURN=FD→当前任务栈范围；F9/F1→MSP 范围；用帧校验定位 |
+
+**还原流程**（已自动化：`frame` / `full-analyze` 子命令，无需人工脚本）：
+1. 扫 store 头部找 EXC_RETURN → 判定模式（`0xFFFFFFFD`=Thread/PSP 任务里崩，帧在该任务栈；
+   `0xFFFFFFF9`=Thread/MSP；`0x...1`=Handler 异常嵌套）。
+2. 按模式定 SP 候选：PSP → 当前任务栈（`pxCurrentTCB` 的 `pxStack`~`pxTopOfStack`）；
+   MSP → `__StackLimit`~`__StackTop`。store 头部落该范围的栈值 + `pxTopOfStack` 作候选。
+3. 对每个候选 SP 读 8 字帧 `{R0,R1,R2,R3,R12,LR,PC,xPSR}`，三重校验：PC∈代码段(`elf.is_code`)
+   + xPSR bit24=1 + LR 是合法函数。三重通过才确认帧（避免把栈上巧合数据当帧）。
+4. `PC` → objdump 反汇编确认崩溃指令类型（`LDR/STR` 访存、`BL` 跳转、未定义指令…）；
+   `R0..R3` 看函数参数 / fault 访存地址；`LR` 给调用者。
+
+> ⚠️ **偏移随固件版本变**（某 dump 实测 EXC_RETURN@store+0x50、PSP@+0x58，但**勿硬编码**——
+> 脚本用扫描 + 帧校验定位）。CFSR/HFSR/MMFAR/BFAR（`0xE000ED28~38`）**不在 dump**（核内寄存器，
+> DTools 未抓）。故 QCX216 HardFault 靠"异常帧 PC/LR + 反汇编指令语义"定位，而非 fault status。
+> 例：`STR R1,[R2,#8]` 且 R2=0 → 向地址 0x8 写 → 空指针/链表损坏（无需 CFSR 即可判定）。
 
 ## 常见 HardFault 模式 → 根因
 
 | 现象 | 可能根因 |
 |------|---------|
 | PC 指向 RAM 数据区 / `UNDEFINSTR` | 函数指针损坏 / 栈被踩后返回到非法地址 |
-| `IBUSERR` + PC 在 Flash 代码区 | Flash 代码损坏（见 [[7040012382-fsrf-read-limit]] 类完整性问题） |
+| `IBUSERR` + PC 在 Flash 代码区 | Flash 代码损坏（取指错误；用 `code-compare` 子命令核对 ELF 代码段 vs dump） |
 | `DACCVIOL`/`PRECISERR` + BFAR 指向非法地址 | 空指针/野指针写、数组越界 |
 | `UNALIGNED` | 强制类型转换导致未对齐访问 |
 | `DIVBYZERO` | 整数除零 |

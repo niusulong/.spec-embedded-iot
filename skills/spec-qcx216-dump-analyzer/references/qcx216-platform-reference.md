@@ -154,8 +154,9 @@ Cortex-M3 移植的 FreeRTOS TCB（用 IDLE 任务 TCB 验证）：
 常见 QCX216 中断触发源：`XIC_IntHandler`(中断分发) → `ACIpcAlone0/1Isr`(AP↔CP IPC) →
 `IpcC2AMsg2Errc`(CP→AP 消息到协议栈) → `MPDMA_interruptHandler`(DMA)。
 
-**OSA Signal 内存池（`OsaCreate*Signal` assert 必查）**：`OsaCreateFastSignal` 等不走红 TLSF 堆，
-而调 `OsaMemPoolIdAlloc(poolId, ...)` 从 **OSA 专用池**分配。池数据：
+**OSA Signal 内存池（`OsaCreate*Signal` assert 必查）**——以下方法论已用案例 **7031160371**
+逆向验证，括注的 sigId/msgId 等具体数据为该案例实测值，作方法论佐证：`OsaCreateFastSignal` 等
+不走红 TLSF 堆，而调 `OsaMemPoolIdAlloc(poolId, ...)` 从 **OSA 专用池**分配。池数据：
 - `osaMemPoolDescList[3]` @0x425550，每池 24B 描述符：
   `u16(+0)=blksize, u16(+2)=total, u16(+4)=used计数, u32(+8)=base, u32(+C)=end, u32(+10)=freeHead(空闲链头), u32(+14)=tail`
 - `gUpMemPoolBuf` @0x44EE08（实际池内存）
@@ -271,9 +272,10 @@ dump full-analyze
    `文件名:行号`，但无法看源码——需对照头文件函数签名 + assert `Val` 推断。
 2. **EPAT 日志是 UTF-16LE**：`Communicatios.log` grep 前必须 `iconv -f UTF-16LE -t UTF-8`。
 3. **ELF 版本必须匹配**：用 dump 同目录的崩溃固件 ELF，勿用 `gccout/` 当前编译产物。
-4. **反汇编已内置（无需 capstone/objdump）**：`qcx216_disasm.py` 纯 Python 实现
-   Thumb/Thumb-2 反汇编，覆盖调试高频指令（PUSH/POP/MOV/LDR/STR/B/BL/CBZ/LDR.W/…），
-   罕见指令降级 `.short/.word`。`full-analyze` 自动反汇编触发点附近；`disasm` 子命令可反汇编任意地址。
+4. **反汇编优先 objdump**（仓库自带 `PLAT/tools/gcc/arm-none-eabi/bin`：权威 Thumb-2 +
+   自带 DWARF 源码行，正确解 ITE 条件块/MSR/宽指令），降级 capstone，再降级 `qcx216_disasm.py`
+   纯 Python（覆盖高频指令，罕见指令降级 `.short/.word`，**漏解 ITE 条件块**）。`full-analyze`/
+   `disasm` 自动选后端，输出标 `backend:`。详见 `arm-toolchain-guide.md`。
 5. **`__mcu_stack`(MSP)/部分任务栈不填 0xA5**：栈扫描显示 `NO SENTINEL` 是正常现象，
    不代表溢出。
 6. **entry 指针落在 `0x008xxxxx`**：可能是 bootloader/镜像区入口，不影响 AP 固件分析。

@@ -91,3 +91,18 @@ TCB_NAME_MAX = 16                  # 常见 configMAX_TASK_NAME_LEN
 
 # FreeRTOS 任务栈填充魔法字（栈底哨兵）
 STACK_FILL_MAGIC = 0xA5A5A5A5      # vPortInitialiseStack 用 0xa5 填充
+
+# FreeRTOS List_t / ListItem_t 字段偏移（Cortex-M，已用 pxCurrentTimerList 验证）
+# List_t:        uxNumberOfItems(+0) pxIndex(+4) xListEnd(MiniListItem_t @+8)
+# MiniListItem_t: xItemValue(+0/+8 of list) pxNext(+C) pxPrevious(+10)
+LIST_OFF_NUMITEMS = 0x00
+LIST_OFF_PXINDEX = 0x04
+LIST_OFF_END = 0x08               # xListEnd 起始（= list + 8）
+LISTEND_OFF_PXNEXT = 0x0C         # 相对 list 基址
+LISTEND_OFF_PXPREV = 0x10
+# ListItem_t: xItemValue(+0) pxNext(+4) pxPrevious(+8) pxOwner(+C) pxContainer(+10)
+ITEM_OFF_XITEMVALUE = 0x00
+ITEM_OFF_PXNEXT = 0x04
+ITEM_OFF_PXPREV = 0x08
+ITEM_OFF_OWNER = 0x0C
+ITEM_OFF_CONTAINER = 0x10

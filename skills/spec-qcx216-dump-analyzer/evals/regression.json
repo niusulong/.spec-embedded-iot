@@ -1,0 +1,33 @@
+{
+  "skill": "qcx216-dump-analyzer",
+  "description": "端到端回归：跑 full-analyze 校验关键输出不漂移。dump/elf 需在 <repo>/.spec/logs/<id>/（.spec 被 gitignore，回归实际在项目本地跑）。",
+  "cases": [
+    {
+      "id": "7056787126",
+      "scenario": "HardFault 崩在 vListInsert（定时器链表悬空节点 → 堆损坏）",
+      "dump_glob": "RamDumpData_*.bin",
+      "elf": "ap_at_command.elf",
+      "assertions": [
+        {"re": "Exception Type: HardFault", "desc": "识别为 HardFault"},
+        {"re": "Faulting PC: 0x00005102 -> vListInsert\\+0x", "desc": "崩溃指令在 vListInsert"},
+        {"re": "Caller LR : 0x004207B3 -> prvInsertTimerInActiveList", "desc": "调用者是定时器列表插入"},
+        {"re": "Heap integrity: ⚠️ 损坏", "desc": "堆完整性检出 head_bound 损坏"},
+        {"re": "R3\\s+= 0x00483A18.*FREE.*悬空", "desc": "崩溃寄存器指向已释放块（悬空/UAF）"},
+        {"re": "backend: objdump", "desc": "反汇编用 objdump 权威后端"}
+      ]
+    },
+    {
+      "id": "7031160371",
+      "scenario": "ASSERT OsaCreateFastSignal（OSA 信号池满，CP→AP IPC 高频投递）",
+      "dump_glob": "RamDumpData_*.bin",
+      "elf": "N706D-Q101-STD-IN2X_CPS-01/ap_at_command.elf",
+      "assertions": [
+        {"re": "Exception Type: ASSERT", "desc": "识别为 ASSERT"},
+        {"re": "Func.*OsaCreateFastSignal", "desc": "assert 函数"},
+        {"re": "Line    : 146", "desc": "assert 行"},
+        {"re": "Trigger.*OsaCreateFastSignal", "desc": "触发点定位"},
+        {"re": "ACIpcAlone1Isr|IpcC2AMsg2|interrupt", "desc": "中断上下文 / CP→AP IPC 触发源"}
+      ]
+    }
+  ]
+}

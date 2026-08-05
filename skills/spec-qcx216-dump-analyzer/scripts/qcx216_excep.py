@@ -25,10 +25,99 @@ Unisoc QCX216 的异常转储结构与 EC/ASR 都不同，已从 RamDumpData_202
 """
 import re
 
-from qcx216_common import u32, EXCEP_MAGIC1, EXCEP_MAGIC2
+from qcx216_common import (u32, EXCEP_MAGIC1, EXCEP_MAGIC2,
+                           TCB_OFF_TOP_OF_STACK, TCB_OFF_STACK_BASE)
 
 # 扫描窗口：assert 字符串在 store+0xC0 附近，留足余量
 SCAN_SIZE = 0x800
+
+# store 头部寄存器/栈快照扫描上界（EXC_RETURN / SP 等都散落在此窗口内）
+SNAPSHOT_SCAN_HI = 0x140
+
+# Cortex-M EXC_RETURN 值（异常返回时压入 LR；决定崩溃栈是 MSP 还是 PSP）
+EXC_RETURN_VALUES = {
+    0xFFFFFFF1: "Handler/MSP",   # 异常嵌套（Handler 模式，用 MSP）
+    0xFFFFFFF9: "Thread/MSP",    # Thread 模式用 MSP（主栈 / 中断里触发）
+    0xFFFFFFFD: "Thread/PSP",    # Thread 模式用 PSP（任务里崩，最常见）
+}
+
+# Cortex-M 异常帧（硬件自动压栈 8 字，R0 在低地址、xPSR 在高地址）
+FRAME_WORDS = ("R0", "R1", "R2", "R3", "R12", "LR", "PC", "xPSR")
+
+
+def _read_and_verify_frame(data: bytes, elf, sp: int):
+    """读 SP 处 8 字异常帧 + 三重校验（PC∈代码 + xPSR.T位 + LR∈代码）。
+    通过返回 dict，否则 None。"""
+    if sp is None or sp < 0 or sp + 0x20 > len(data):
+        return None
+    vals = [u32(data, sp + i * 4) for i in range(8)]
+    if any(x is None for x in vals):
+        return None
+    r0, r1, r2, r3, r12, lr, pc, xpsr = vals
+    ok_pc = bool(pc and elf.is_code(pc & ~1))
+    ok_psr = bool(xpsr and (xpsr >> 24) & 1)   # xPSR bit24 = Thumb 位，合法帧必置位
+    ok_lr = bool(lr and elf.is_code(lr & ~1))
+    if ok_pc and ok_psr:   # PC + xPSR 必过；LR 作强校验信号（verified 元组里体现）
+        return {"sp": sp, "r0": r0, "r1": r1, "r2": r2, "r3": r3,
+                "r12": r12, "lr": lr, "pc": pc, "xpsr": xpsr,
+                "verified": (ok_pc, ok_psr, ok_lr)}
+    return None
+
+
+def extract_exception_frame(data: bytes, elf, region: bytes, store_addr: int):
+    """从 excepInfoStore 还原 Cortex-M 异常帧（EXC_RETURN→SP→8字帧 + 三重校验）。
+
+    不依赖固定偏移（偏移随固件版本变）：
+      1. 扫 store 头部(+0~+0x140) 找 EXC_RETURN（精确匹配三个 magic 值）→ 模式(MSP/PSP)
+      2. 按模式定 SP 候选范围：Thread/PSP → 当前任务栈范围(pxCurrentTCB 的 pxStack~pxTopOfStack)
+         + store 里落该范围的栈值；Thread/MSP|Handler → __StackLimit~__StackTop + store 栈值
+      3. 对每个候选 SP 读帧 + 三重校验，返回首个通过者
+    返回 {exc_return, mode, sp, r0..r3, r12, lr, pc, xpsr, verified} 或 None。
+    """
+    # 1) 找 EXC_RETURN
+    exc_return = mode = None
+    for off in range(0, min(len(region), SNAPSHOT_SCAN_HI), 4):
+        v = u32(region, off)
+        if v in EXC_RETURN_VALUES:
+            exc_return, mode = v, EXC_RETURN_VALUES[v]
+            break
+    if exc_return is None:
+        return None
+
+    # 2) SP 候选范围 + 初始候选
+    sp_cands = []
+    if mode == "Thread/PSP":
+        sp_lo = sp_hi = 0
+        ptcb_sym = elf.find_symbol("pxCurrentTCB")
+        if ptcb_sym:
+            ptcb = u32(data, ptcb_sym.addr)
+            if ptcb:
+                top = u32(data, ptcb + TCB_OFF_TOP_OF_STACK)
+                base = u32(data, ptcb + TCB_OFF_STACK_BASE)
+                if top and base:
+                    sp_lo, sp_hi = base, top
+                    sp_cands.append(top)   # pxTopOfStack 本身也试（帧常在其下方 0x10~0x20）
+        else:
+            sp_lo, sp_hi = 0, len(data)
+    else:   # MSP
+        lim = elf.find_symbol("__StackLimit")
+        top = elf.find_symbol("__StackTop")
+        sp_lo = lim.addr if lim else 0
+        sp_hi = top.addr if top else len(data)
+    # store 头部里落在 SP 范围的值（异常时刻 SP 快照）
+    for off in range(0, min(len(region), SNAPSHOT_SCAN_HI), 4):
+        v = u32(region, off)
+        if v and sp_lo <= v <= sp_hi:
+            sp_cands.append(v)
+
+    # 3) 逐一校验，返回首个通过者
+    for sp in sorted(set(sp_cands)):
+        fr = _read_and_verify_frame(data, elf, sp)
+        if fr:
+            fr["exc_return"] = exc_return
+            fr["mode"] = mode
+            return fr
+    return None
 
 # ASSERT 文本特征关键字（大小写不敏感匹配）
 ASSERT_KEYWORDS = ("func:", "line:", "val:", "assert", "!!!ap")
@@ -201,6 +290,9 @@ def parse_excep(data: bytes, elf, store_addr: int, scan_size: int = SCAN_SIZE) -
     else:
         etype = "Unknown"
 
+    # 异常帧还原（HardFault 核心证据；ASSERT 软件触发通常无硬件帧 → None）
+    frame = extract_exception_frame(data, elf, region, store_addr) if valid else None
+
     return {
         "store_addr": store_addr,
         "magic1": m1, "magic2": m2, "valid": valid,
@@ -209,6 +301,7 @@ def parse_excep(data: bytes, elf, store_addr: int, scan_size: int = SCAN_SIZE) -
         "assert": a,
         "code_addrs": code_addrs,
         "sp_candidates": sp_cands,
+        "frame": frame,
         "region": region,   # 供字段解读
     }
 
@@ -245,8 +338,31 @@ def format_excep(res: dict, elf) -> str:
         for off, sp, kind in res["sp_candidates"]:
             lines.append(f"    +0x{off:04X}     0x{sp:08X}  {kind}")
 
+    # 异常帧（HardFault 核心证据，已三重校验；无需手写脚本还原）
+    fr = res.get("frame")
+    if fr:
+        lines.append("")
+        lines.append(f"  ### Exception Frame (Cortex-M, {fr['mode']})")
+        lines.append(f"    EXC_RETURN = 0x{fr['exc_return']:08X}  -> {fr['mode']}")
+        lines.append(f"    SP (frame) = 0x{fr['sp']:08X}  (异常帧起点；R0 在此，xPSR 在 +0x1C)")
+        regs = [("R0", fr['r0']), ("R1", fr['r1']), ("R2", fr['r2']), ("R3", fr['r3']),
+                ("R12", fr['r12']), ("LR", fr['lr']), ("PC", fr['pc']), ("xPSR", fr['xpsr'])]
+        for nm, v in regs:
+            extra = ""
+            if nm in ("PC", "LR") and v:
+                loc = elf.locate(v & ~1)
+                sym = loc["symbol"] or "?"
+                disp = f"{sym}+0x{loc['sym_offset']:X}" if loc["sym_offset"] is not None else sym
+                src = f"  [{loc['file']}:{loc['line']}]" if loc["file"] else ""
+                role = "  << 崩溃指令" if nm == "PC" else "  (调用者)"
+                extra = f"  -> {disp}{role}{src}"
+            lines.append(f"    {nm:<4} = 0x{v:08X}{extra}")
+        ok = fr["verified"]
+        verdict = "帧可信（三重校验通过）" if all(ok) else "部分校验失败，谨慎引用"
+        lines.append(f"    校验: PC∈代码={ok[0]}  xPSR.T位={ok[1]}  LR∈代码={ok[2]}  -> {verdict}")
+
     # 调用栈候选：把寄存器快照区里的代码地址解码出来
-    if res["code_addrs"]:
+    if res.get("code_addrs"):
         lines.append("")
         lines.append("  ### Code addresses captured in exception store (call-chain candidates)")
         lines.append(f"    {'store+off':<10} {'addr':<10} symbol")

@@ -40,7 +40,10 @@ SCRIPTS = [
      [r"poolId\s*=", r"\*\*\* 满", r"freeHead", r"blksize", r"used\(cnt\)"]),
     ("stacks", "全任务栈溢出扫描",
      "scan-stacks", ["{dump}", "--elf", "{elf}"],
-     [r"OVERFLOW", r"WARNING", r"NO SENTINEL", r"used%"]),
+     [r"OVERFLOW", r"WARNING", r"NO SENTINEL", r"used%", r"Stack overflow risk"]),
+    ("code_compare", "代码完整性：ELF 代码段 vs dump（HardFault 排除代码损坏）",
+     "code-compare", ["{dump}", "--elf", "{elf}"],
+     [r"INTACT", r"CORRUPTED", r"NOT LOADED", r"代码损坏", r"matches"]),
 ]
 
 
@@ -79,8 +82,9 @@ def run_subcmd(dump, elf, subcmd, args_tmpl, analysis_dir, seq, name):
 
 
 def extract_trigger(full_out):
-    """从 full-analyze 输出提取触发点地址。"""
-    m = re.search(r"Trigger\s*:?\s*0x([0-9A-Fa-f]+)", full_out)
+    """从 full-analyze 输出提取触发点地址。兼容 ASSERT 的 'Trigger : 0x..'（Root-Cause
+    Summary）和 HardFault 的 'trigger = 0x..'（format_disasm_section 段头）。"""
+    m = re.search(r"[Tt]rigger\s*[:=]?\s*0x([0-9A-Fa-f]+)", full_out)
     if not m:
         m = re.search(r"^>>\s*0x([0-9A-Fa-f]{6,})", full_out, re.M)
     return ("0x" + m.group(1)) if m else None
@@ -112,6 +116,13 @@ def main():
     out_abs = os.path.abspath(args.out_dir)
     analysis_dir = os.path.join(out_abs, "analysis")
     os.makedirs(analysis_dir, exist_ok=True)
+    # 清空上次运行生成产物（避免重跑残留旧编号文件误导/编号冲突）
+    for f in os.listdir(analysis_dir):
+        if f.endswith((".txt", ".json", ".md")):
+            try:
+                os.remove(os.path.join(analysis_dir, f))
+            except OSError:
+                pass
 
     fw = firmware_version(dump_abs)
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

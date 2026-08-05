@@ -223,6 +223,7 @@ def format_tasks(data: bytes, elf, current_tcb=None) -> str:
         lines.append(f"    pxStack(base): 0x{cur['stack_base']:08X}")
 
     tasks = enumerate_tasks(data, elf, current_tcb)
+    risky = []
     if tasks:
         lines.append("")
         lines.append(f"  ### All tasks ({len(tasks)})")
@@ -236,4 +237,18 @@ def format_tasks(data: bytes, elf, current_tcb=None) -> str:
             lines.append(
                 f"   {mark}{t['name']:<18} 0x{t['tcb_addr']:08X} 0x{t['stack_base']:08X} "
                 f"{t['stack_size']:<7} {used:<7} {a['verdict']}")
+            # 收集栈溢出风险（OVERFLOW / HIGH RISK / WARNING），NO SENTINEL 不算（多为 MSP）
+            if a["verdict"] not in ("OK",) and "NO SENTINEL" not in a["verdict"]:
+                risky.append((t, a))
+        # 栈溢出风险摘要（UIS8852 风格：突出高危任务 + 被中断任务根因提示）
+        if risky:
+            lines.append("")
+            lines.append("  ### Stack overflow risk")
+            for t, a in risky:
+                cur = "  ← 当前/被中断任务" if t["is_current"] else ""
+                pct = ("%.0f%%" % a["used_pct"]) if a["used_pct"] is not None else "?"
+                lines.append(f"    {t['name']:<18} {a['verdict']} ({pct}){cur}")
+            lines.append("  提示: 若【当前/被中断任务】为 OVERFLOW/HIGH RISK，"
+                         "栈溢出很可能是崩溃根因（栈踩坏相邻堆/TCB）；")
+            lines.append("        NO SENTINEL 多为 MSP 主栈/非任务栈，无法用 0xA5 哨兵判定，非溢出。")
     return "\n".join(lines)

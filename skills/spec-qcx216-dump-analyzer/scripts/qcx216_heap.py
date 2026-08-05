@@ -87,6 +87,63 @@ def walk_tlsf(data: bytes, elf, max_blocks: int = 8000):
     return (used, free)
 
 
+def check_heap_integrity(data: bytes, elf, max_blocks: int = 8000):
+    """主 TLSF 堆物理完整性校验：遍历时校验 head_bound(0xBEAFDEAD)。
+
+    返回 (n_blocks, bad_block)。bad_block=(addr, head_bound_value) 或 None（完整）。
+    head_bound 不符即块头被踩 → 越界写 / double-free / use-after-free 破坏物理连续性。
+    """
+    pool = _get_pool(data, elf)
+    if not pool:
+        return (0, None)
+    mem, psize = pool
+    hi = mem + psize + 0x200
+    b = mem - 4
+    n = 0
+    while b < hi and n < max_blocks:
+        hb = u32(data, b + BLK_OFF_HEADBOUND)
+        if hb is None:
+            break
+        if hb != HEAD_BOUNDARY_MAGIC:
+            return (n, (b, hb))
+        szf = u32(data, b + BLK_OFF_SIZE)
+        if szf is None:
+            break
+        _is_free, asize, _w = _block_size(szf)
+        if asize == 0 or asize > 0x100000:
+            break  # last block
+        n += 1
+        b = b + BLK_OFF_SIZE + asize
+    return (n, None)
+
+
+def find_enclosing_block(data: bytes, addr: int, max_back: int = 0x2000):
+    """查 addr 所属 MM_DEBUG 块（向前扫 head_bound=0xBEAFDEAD 且 addr 落在 payload 内）。
+
+    返回 {hdr, free, size, owner, off} 或 None。适用于任意 MM_DEBUG 池（主 TLSF / OSA IE 等），
+    不限主堆 —— 给任意地址判 used/free + 分配者（used 块）。落在 FREE 块内 = 悬空/use-after-free。
+    """
+    for back in range(0, max_back, 4):
+        b = addr - back
+        if b < 0x100:
+            break
+        if u32(data, b + BLK_OFF_HEADBOUND) != HEAD_BOUNDARY_MAGIC:
+            continue
+        szf = u32(data, b + BLK_OFF_SIZE)
+        if szf is None:
+            continue
+        is_free, asize, _w = _block_size(szf)
+        if asize == 0 or asize > 0x100000:
+            continue  # size 不可信，跳过假头
+        payload_lo = b + 0x10
+        payload_hi = b + BLK_OFF_SIZE + asize
+        if payload_lo <= addr < payload_hi:
+            owner = u32(data, b + BLK_OFF_OWNER) or 0
+            return {"hdr": b, "free": is_free, "size": asize,
+                    "owner": owner, "off": addr - payload_lo}
+    return None
+
+
 def analyze_heap(data: bytes, elf):
     """主 TLSF 堆综合分析。"""
     used, free = walk_tlsf(data, elf)
@@ -146,6 +203,18 @@ def format_heap(data: bytes, elf) -> str:
         lines.append(f"  >> 判定: 堆健康({h['used_pct']:.1f}% used, 碎片化 {h['frag_pct']:.1f}%)")
     if "slp2_free" in h:
         lines.append(f"  psSlp2FreeBytes    : {h['slp2_free']} bytes  (注: sleep/retention 另一堆, 非主堆)")
+
+    # 堆物理完整性（head_bound 校验）：越界写 / double-free / UAF 会破坏块头
+    _n_blk, bad = check_heap_integrity(data, elf)
+    if bad:
+        lines.append("")
+        lines.append("  ### Heap integrity: ⚠️ 损坏")
+        lines.append(f"    物理遍历在第 {_n_blk} 块后中断: @0x{bad[0]:08X}  "
+                     f"head_bound=0x{bad[1]:08X} (非 0xBEAFDEAD)")
+        lines.append("    → 堆元数据损坏（越界写 / double-free / use-after-free 破坏物理连续性）；"
+                     "查崩溃寄存器指向地址的块状态可用 qcx216_heap.find_enclosing_block")
+    else:
+        lines.append(f"  ### Heap integrity: ✓ 完整（{_n_blk} 块 head_bound 全部合法，物理遍历连续）")
 
     # 内存归属 TOP
     if h["by_owner"]:
