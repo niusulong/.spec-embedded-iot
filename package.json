@@ -1,7 +1,29 @@
 {
   "name": "agents",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "type": "module",
   "main": ".opencode/plugins/agents.js",
-  "private": true
+  "private": true,
+  "description": "嵌入式 IoT 开发技能库：Bug 根因分析、Crash Dump 分析、代码总结，需求→方案→实施计划链路，跨项目 LLM-Wiki 知识库",
+  "license": "Apache-2.0",
+  "keywords": [
+    "pi-package",
+    "embedded",
+    "iot",
+    "dump-analysis",
+    "knowledge-base",
+    "skills"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  },
+  "pi": {
+    "skills": ["./skills"],
+    "extensions": ["./extensions"]
+  }
 }

@@ -13,6 +13,14 @@
 /plugin install spec-embedded-iot@spec-embedded-iot
 ```
 
+### 其他平台
+
+- **Pi (Pi Coding Agent)**：
+  - 发布/共享：`pi install git:github.com/niusulong/.spec-embedded-iot.git`
+  - 本地开发：`pi install /c/Users/20220715012/.spec-embedded-iot`（不复制文件，改完 `/reload` 即生效）
+  - 详见 [`docs/INSTALL-pi.md`](docs/INSTALL-pi.md)。技能由 Pi 原生发现，`spec-using-agents` 由内置扩展自动注入。
+- **OpenCode / Codex / Cursor / Gemini**：见各自 `.*-plugin/` 描述与 `.opencode/INSTALL.md`。
+
 ## 技能列表
 
 | 技能 | 触发词 | 说明 |
@@ -33,7 +41,7 @@
 | `spec-solution-designer` | spec 设计方案、spec 技术方案、spec 出方案 | 需求 → 嵌入式技术方案：架构分层、RTOS 任务/并发、内存·功耗·时序预算、AT 与协议栈兼容、接口、风险 |
 | `spec-implementation-planner` | spec 实施计划、spec 编写计划、spec 排期、spec 任务拆解 | 技术方案 → 委托 superpowers:writing-plans 产出代码级实施计划（内嵌代码步骤、no-placeholders）；硬约束：编码规范合规 + 输出 spec 路径 + 去 TDD 改嵌入式验证 |
 | `spec-memory-leak-analyzer` | 分析内存泄漏、内存只增不减、free heap 一直掉、memory leak | 内存泄漏定位（call-stack 追踪：埋点记录 caller 地址，配对找泄漏点，MAP 映射到源码），覆盖 GCC/ARMCC/IAR/MSVC |
-| `spec-using-agents` | （会话启动时自动加载） | 元技能：所有技能入口与使用规则、知识库访问、平台工具映射（Codex/OpenCode） |
+| `spec-using-agents` | （会话启动时自动加载） | 元技能：所有技能入口与使用规则、知识库访问、平台工具映射（Codex/OpenCode/Pi） |
 
 ## 知识库
 
@@ -93,7 +101,8 @@ python skills/spec-knowledge-archiver/scripts/kb.py archive --project {项目根
 .codex-plugin/                  # OpenAI Codex 插件描述
 .cursor-plugin/                 # Cursor 插件描述
 .opencode/                      # OpenCode 插件描述（agents.js + INSTALL.md）
-hooks/                          # 会话启动 hook（注入 spec-using-agents 内容）
+extensions/                     # Pi 扩展（spec-session-start.ts：自动注入 spec-using-agents）
+hooks/                          # 会话启动 hook（Claude Code/Cursor：注入 spec-using-agents 内容）
 skills/                         # 技能定义（每个技能一个目录，仅追踪 spec-*/ 前缀）
 examples/                       # AT 指令端到端测试用例示例（YAML）
 docs/                           # 文档（功能说明 / 历史修改记录 / 功能变更 / 审查与优化）

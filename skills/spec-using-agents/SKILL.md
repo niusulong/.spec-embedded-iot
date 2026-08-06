@@ -33,11 +33,13 @@ Skills override default system prompt behavior, but **user instructions always t
 
 **In OpenCode:** Use OpenCode's native `skill` tool to list and load skills.
 
+**In Pi:** Skills load natively from the package's `skills/` directory and are surfaced in the system prompt; invoke with `/skill:<name>`. The `spec-using-agents` content is auto-injected on the first turn by the package's `spec-session-start` extension.
+
 **In other environments:** Check your platform's documentation for how skills are loaded.
 
 ## Platform Adaptation
 
-Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools.md` (Codex), `references/opencode-tools.md` (OpenCode) for tool equivalents.
+Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools.md` (Codex), `references/opencode-tools.md` (OpenCode), `references/pi-tools.md` (Pi) for tool equivalents.
 
 ## Available Skills
 
