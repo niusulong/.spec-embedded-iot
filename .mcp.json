@@ -1,0 +1,6 @@
+{
+  "tshark": {
+    "command": "python",
+    "args": ["-m", "tshark_mcp"]
+  }
+}

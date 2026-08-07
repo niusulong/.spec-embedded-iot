@@ -15,6 +15,10 @@ jobs:
         python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          # requirements.txt 含 `-e ./vendor/TShark2MCP`，需拉取子模块才能 pip install。
+          # 注意：子模块自带 ~118MB Windows tshark，CI（ubuntu）用不到但会下载。
+          submodules: true
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -29,8 +33,7 @@ jobs:
           pip install pytest
 
       # knowledge-archiver 测试套件自包含（用临时 KNOWLEDGE_ROOT），本地 57 passed 稳定。
-      # 暂不纳入 CI 的两项（待后续解决）：
-      #   - test_pcap_analyzer：pre-existing scapy 兼容失败（4 fail + 9 error），需单独修。
+      # 暂不纳入 CI 的一项（待后续解决）：
       #   - kb.py wiki lint：依赖 knowledge 子仓库（私有，CI 默认 token 无权跨仓库拉取），
       #     需配置 PAT secret 后再加，或改为跑测试 fixture。
       - name: Run knowledge-archiver tests

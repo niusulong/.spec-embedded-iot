@@ -43,3 +43,19 @@ To use subagent-based skills (like bug analysis with parallel verification), add
 [features]
 multi_agent = true
 ```
+
+## TShark2MCP MCP server（pcap 分析后端）
+
+`spec-bug-analyzer` 的 pcap 报文解析由内嵌的 TShark2MCP MCP server（封装 tshark）提供。Claude Code 经插件 `.mcp.json` 自动注册；**Codex 需手动注册**到 `~/.codex/config.toml`：
+
+```toml
+[mcp_servers.tshark]
+command = "python"
+args = ["-m", "tshark_mcp"]
+```
+
+前置（一次性）：
+1. 插件子模块已 init：`git submodule update --init vendor/TShark2MCP`
+2. 依赖已装：`pip install -r requirements.txt`（含 `-e vendor/TShark2MCP`，自动拉 `mcp` + `pydantic`；Windows 下 tshark 随子模块自带，无需另装 Wireshark）
+
+注册后 `tshark` server 提供 5 个工具：`get_pcap_overview` / `list_conversations` / `extract_packets` / `extract_stream` / `get_statistics`。用法与避坑见 `skills/spec-bug-analyzer/references/pcap-analyzer-guide.md`。

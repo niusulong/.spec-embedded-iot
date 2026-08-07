@@ -10,7 +10,7 @@ description: >-
   边界：本技能不解析 crash dump（PC/LR/SP/堆栈寄存器、异常反汇编）——那是专门 dump 分析技能的职责；
   若分析确认根因是内存泄漏且需精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
-version: 4.0
+version: 4.1
 author: niusulong
 ---
 
@@ -108,7 +108,7 @@ git rev-parse --abbrev-ref HEAD
 |--------|----------|------|
 | P0 | AT命令日志 | 操作流程和问题发生时序 |
 | P1 | 模块AP日志 | 底层详细执行信息 |
-| P2 | pcap 报文 | 网络协议层交互（用 `pcap_analyzer.py`） |
+| P2 | pcap 报文 | 网络协议层交互（用 TShark2MCP MCP 工具，见 `references/pcap-analyzer-guide.md`） |
 
 > 死机/崩溃问题的 dump 现场（寄存器/堆栈）不属本技能，见【职责边界】转交 dump 分析技能；本技能分析死机**前**的日志时序与现象。
 
@@ -123,7 +123,7 @@ git rev-parse --abbrev-ref HEAD
 
 **死机/重启日志的时间线切片**：日志含多次死机重启时，先用重启锚点（`^boot.rom` / `+PBREADY` / `RDY` / `Sys start` 等）切分为独立片段，每段分析只引用本片段内日志，**禁止跨重启拼接因果**。缺陷单描述的现象须对应到具体某一次重启片段，避免把上一次死机前的配置/状态误当本次现场。
 
-**报文日志（.pcap）**：网络抓包用 `scripts/pcap_analyzer.py` 直接解析，AI 可替代 Wireshark 完成协议解码（依赖 `scapy`，未装则 `pip install scapy`）——`flows` 看全局流摘要、`around --time` 定位异常时刻前后报文交互、`show --lport` 逐包解码、`search -k` 搜明文 payload、`decode --packet` 单包分层树。脚本用法与避坑（TCP 重传误判粘包、加密内容边界）见 `references/pcap-analyzer-guide.md`。**禁止**用文本工具直接读 .pcap 二进制，也**禁止**现场手写 struct 解析——已有脚本。
+**报文日志（.pcap）**：网络抓包用内嵌的 **TShark2MCP** MCP server（封装 tshark）解析，AI 通过 5 个 MCP 工具替代 Wireshark 完成协议解码——`get_pcap_overview` 看全局+协议层次、`list_conversations` 列会话（双向包/字节统计）、`extract_packets` 按协议+时间窗过滤（定位异常时刻前后报文）、`extract_stream` 按 5-tuple 深挖单流双向、`get_statistics` 重传率/吞吐/重复ACK/延迟（新能力）。依赖随 `pip install -r requirements.txt` 安装（其中 `-e vendor/TShark2MCP` 自动拉 `mcp`+`pydantic`），Windows 自带 tshark 无需另装 Wireshark；Claude Code 经插件根 `.mcp.json` 自动注册，Codex/OpenCode 需手动注册。工具用法与避坑（TCP 重传误判粘包、加密内容边界、文本 dump 处理）见 `references/pcap-analyzer-guide.md`。**禁止**用文本工具直接读 .pcap 二进制，也**禁止**现场手写 struct 解析——已有 MCP 工具。
 
 ### Step 3：对比分析（仅正常+异常两组日志时）
 
@@ -286,4 +286,4 @@ ls ~/.spec-embedded-iot/knowledge/wiki/concepts/
 - `references/contrast-analysis-guide.md` — 对比分析方法详细指南
 - `references/analysis-patterns.md` — 通用问题模式与通用分析手法（平台专属已移至 `profiles/`）
 - `references/log-analyzer-guide.md` — 日志分析脚本使用指南
-- `references/pcap-analyzer-guide.md` — pcap 报文分析脚本使用指南（替代 Wireshark）
+- `references/pcap-analyzer-guide.md` — pcap 报文分析指南（TShark2MCP / tshark 后端，5 个 MCP 工具）

@@ -1,192 +1,141 @@
-# pcap 报文分析脚本使用指南
+# pcap 报文分析指南（TShark2MCP / tshark 后端）
 
-脚本路径：`scripts/pcap_analyzer.py`（相对于本技能目录，执行时按技能加载给出的目录拼接）。
+> 本技能的 pcap 解析由内嵌的 **TShark2MCP** MCP server 提供（封装 Wireshark 的 `tshark`/`capinfos`）。AI 通过 5 个 MCP 工具直接做协议解码，替代手写 Wireshark 操作或自写 struct 解析。Windows 下 tshark 随子模块自带，**无需另装 Wireshark**。
 
-> 本工具让 AI **直接解析 .pcap 抓包、替代 Wireshark 完成协议解码**，无需现场手写 struct 解析代码。
+## 前置：依赖就绪
 
-## 依赖
+| 项 | 说明 |
+|----|------|
+| 装依赖 | `pip install -r requirements.txt`（其中 `-e ./vendor/TShark2MCP` 自动拉 `mcp`+`pydantic`） |
+| 子模块 | `git submodule update --init vendor/TShark2MCP`（首次或克隆后必做） |
+| Claude Code | 插件根 `.mcp.json` 自动注册 `tshark` MCP server，启用即用，无需手动配置 |
+| Codex / OpenCode | 需一次性手动注册（见 `spec-using-agents/references/codex-tools.md` / `opencode-tools.md`） |
+| tshark 路径 | 自动发现 `vendor/TShark2MCP/vendor/wireshark/tshark.exe`；非 Windows 或想用系统 Wireshark 时设环境变量 `TSHARK_PATH` |
+| 未就绪 | SessionStart 钩子会向 stderr 打印修复指引，不静默失效 |
 
-- **scapy**：`pip install scapy`（提供全协议栈分层解码，是本工具核心依赖）
-- 未安装时脚本会明确提示并退出，不会静默降级——降级到纯 stdlib 会丢失完整协议解码能力
+> Python 需 ≥3.10（TShark2MCP 要求）。MCP server 未就绪时，pcap 分析这条路不通——按钩子指引修复后即可。
 
-## 支持的文件格式
+## 5 个 MCP 工具速查
 
-脚本自动嗅探文件头选择加载方式，三种格式均无需用户指定：
+| 工具 | 用途 | 关键参数 |
+|------|------|----------|
+| **`get_pcap_overview`** | 文件元信息 + 协议层次树（`io,phs`），不加载单包 | `pcap_file` |
+| **`list_conversations`** | TCP 流 / UDP 会话列表 + 双向包/字节统计 | `pcap_file` `protocol="both"\|"tcp"\|"udp"` `limit=100` |
+| **`extract_packets`** | 按协议 + 时间窗过滤（可组合） | `pcap_file` `protocol`(tcp/http/dns/tls/ftp/mqtt…) `time_window` `limit` `output_format="summary"\|"full"` |
+| **`extract_stream`** | 按 5-tuple 深挖**单流双向** | `pcap_file` `protocol="tcp"\|"udp"` `endpoint_a/b={address,port}` `time_window` `output_format` |
+| **`get_statistics`** | 重传率/吞吐/重复ACK/乱序/HTTP延迟/每连接统计（**旧脚本没有的新能力**） | `pcap_file` `metric="all"\|"latency"\|"throughput"\|"retransmission"\|"tcp"\|"packet_loss"` `time_window` |
 
-- **标准 pcap / pcapng**：scapy.rdpcap 直接读。
-- **文本格式报文 dump**：抓包工具（模块内置抓包 / 串口抓包 / QXDM 类）导出的 ASCII 报文——形如框线分隔 + `YYYY-MM-DD HH:MM:SS,mmm ETHER` 时间戳行 + `|偏移|hex|hex|` 数据行，或 Wireshark 的 `0000  xx xx ...` offset-hex。脚本把 hex 还原成字节、用 scapy 构造包对象，走**与标准 pcap 完全相同**的解码流程，`flows/show/around/search/decode` 全兼容。
-- **无法识别**：打印文件头(hex)与转换建议（`text2pcap`/`editcap`），不抛 traceback。
+**时间窗两种**（`extract_packets` / `extract_stream` / `get_statistics` 通用）：
+- `RelativeWindow(start_seconds, end_seconds)` —— 相对首包的秒数。**推荐**，跨时区稳健，契合"断连前 30 秒"这类描述。
+- `AbsoluteWindow(start, end)` —— 绝对墙钟时间（ISO 8601）。
 
-> 即：拿到一个 `*.pcap` 但 `flows` 直接报 scapy 异常时，多半是文本 dump——本工具已能直接处理，不必手写 struct 解析。
-
-## 子命令速查
-
-| 子命令 | 用途 | 关键参数 |
-|--------|------|----------|
-| `flows` | 列出所有 TCP/UDP 流摘要（端点对/时间/包数/结局 FIN/RST） | `input` `--ip`(过滤IP) `--port`(过滤端口) `--report`(归档) |
-| `show` | 展示指定流的逐包完整解码（时间/方向/各层字段/payload摘要） | `input` `--flow-id` 或 `--lport` `--hex`(附raw hex) `--report`(归档) |
-| `around` | **核心**：给定时刻，定位异常前后的报文交互（默认 ±5s） | `input` `--time`(HH:MM:SS.mmm) `--window`(秒) `--lport`(锁单流) `--report`(归档) |
-| `search` | 跨所有包搜 **明文** payload（如 HTTP 状态码、FTP 命令、DNS 域名） | `input` `-k`(关键字) `--max-results` `--report`(归档) |
-| `decode` | 单包深度解码（wireshark 风格分层树） | `input` `--packet`(序号) `--hex` `--report`(归档) |
-
-> **`--report` 留痕**：所有子命令支持 `--report PATH`，输出同时打印到屏幕并归档为 markdown 文件（含运行时间、pcap 路径、子命令、完整输出）。推荐路径 `.spec/bug/{工作项ID}_{问题描述}/analysis/pcap_report.md`，与 dump 分析的 `analysis/` 归档统一。
+> `extract_*` 返回 `truncated=True` 表示还有更多匹配包——收窄过滤或调大 `limit`（上限 2000）。`output_format="full"` 返回每包完整 JSON 字段（看 SNI/CONNACK 码/CoAP options 等细节时用）。
 
 ## 典型工作流
 
-### 1. 连接断开/重置类问题
-
-```bash
-# 先看全局：哪些流异常结局（RST/无FIN）
-python scripts/pcap_analyzer.py flows capture.pcap
-
-# 选中异常流，看完整交互序列，确认谁先 RST、有无应用层关闭
-python scripts/pcap_analyzer.py show capture.pcap --flow-id 5
-
-# 或按端口定位
-python scripts/pcap_analyzer.py show capture.pcap --lport 49152
+### 1. 连接断开 / 重置类问题
 ```
-
-**判读**：结局列 `RST(服务端主动断)` = 服务端先发 RST；`FIN(正常关闭)` = 正常挥手；`无握手(片段)` = 抓包不全。
+get_pcap_overview        # 先看全局：包数、时长、协议分布
+list_conversations(protocol="tcp")   # 找可疑流：看 forward/reverse 包数是否对称、有无反向数据
+extract_stream(endpoint_a=..., endpoint_b=..., protocol="tcp", output_format="full")
+                         # 看完整握手序列、谁先 FIN/RST、应用层关闭
+```
+**判读**：`forward/reverse` 包数严重不对称 = 单向死掉；`extract_stream` full 里看 flags 序列，谁先发 `RST`/`FIN` 即谁主动断。
 
 ### 2. 概率性失败定位（核心场景）
-
-```bash
-# 给定异常时刻，看该时刻前后所有流的报文交互
-python scripts/pcap_analyzer.py around capture.pcap --time 10:28:18.300 --window 5
-
-# 锁定单流看异常点上下文
-python scripts/pcap_analyzer.py around capture.pcap --time 10:28:18.300 --window 5 --lport 49152
+知道异常相对时刻 T 秒（从 AT/AP 日志推算相对首包的偏移）：
 ```
+extract_packets(time_window=RelativeWindow(T-5, T+5))           # 窗口内所有流交互
+extract_stream(endpoint_a=..., endpoint_b=..., time_window=RelativeWindow(T-10, T+2))  # 锁单流
+```
+不知确切时刻时，先用 `list_conversations` 按 `duration`（跨度）挑异常会话，再 `extract_stream`。
+
+> **长抓包 + 端口复用（NB-IoT/PSM 周期常见）**：模组跨 PSM 周期重用同一本地端口（如 `59266`），5-tuple 不再唯一标识一个会话——`extract_stream` 会把跨越数小时/数十次重连的同 5-tuple 包混到一起、且双向匹配会失真。此时**用 `extract_packets` + `time_window` 按时刻隔离单个会话**（先 `list_conversations` 看 `relative_start` 定位时刻，再切 ±十几秒窗口）。这是隔离单次失败现场的正解。
 
 ### 3. TLS 握手失败
-
-```bash
-# show 命令会自动解码 TLS 握手层（ClientHello/ServerHello/Alert）
-python scripts/pcap_analyzer.py show capture.pcap --flow-id 3
-
-# 搜明文 Alert（注：TLS 加密内容搜不到，但 Alert 的 level/desc 在记录层）
-# 握手层的 ClientHello 含 SNI 域名（明文），show 会自动提取
 ```
-
-### 4. 明文应用协议分析
-
-```bash
-# HTTP 状态码 / FTP 命令响应 / DNS 域名
-python scripts/pcap_analyzer.py search capture.pcap -k "421" "530" "GET" "POST"
-
-# DNS 查询（show/around 会自动解码 DNS 问答摘要）
-python scripts/pcap_analyzer.py flows capture.pcap --port 53
+extract_packets(protocol="tls", output_format="full")   # 自动解 ClientHello(SNI)/ServerHello/Alert
+extract_stream(endpoint_a=..., endpoint_b=..., output_format="full")
 ```
+注：TLS **加密的 ApplicationData 不可解**（无会话密钥，Wireshark 同样需要 keylog），但 ClientHello(含 SNI)、ServerHello、Alert level/desc、ChangeCipherSpec 都是明文，足够定位大多数 TLS 问题。
 
-### 5. 单包深度解码（需看完整字节）
-
-```bash
-# wireshark 风格分层树 + raw hex
-python scripts/pcap_analyzer.py decode capture.pcap --packet 42 --hex
+### 4. 明文应用协议
 ```
-
-### 6. MQTT 连接/发布分析（IoT 常见）
-
-```bash
-# MQTT 流自动识别端口 1883，show 解码控制包
-python scripts/pcap_analyzer.py show capture.pcap --flow-id 3
-
-# 判读：CONNECT（版本/clientId/keepalive）→ CONNACK（rc=0 连接成功 / rc=5 鉴权失败）
-# PUBLISH（topic/payload）→ SUBSCRIBE → PINGREQ/PINGRESP（心跳）
-# 连接失败类 bug 重点看 CONNACK 的返回码
+extract_packets(protocol="http")     # HTTP 请求行/状态码/头
+extract_packets(protocol="ftp")      # FTP 命令/响应码（421/530/230…）
+extract_packets(protocol="dns")      # DNS 问答
 ```
+`output_format="full"` 看完整字段。tshark 解码完整，无需手写正则。
 
-### 7. CoAP 请求/响应分析（LWM2M 底层协议）
-
-```bash
-# CoAP 流自动识别端口 5683，show 解码方法/响应码/options
-python scripts/pcap_analyzer.py show capture.pcap --flow-id 5
-
-# 判读：CON GET [Uri-Path=test] → ACK 2.05 Content（成功）
-#       CON POST → ACK 4.04 Not Found（资源不存在）
-#       CON GET → ACK 5.00 Internal Server Error（服务端异常）
-# LWM2M 设备管理走 CoAP，报文层故障先看响应码
+### 5. MQTT / CoAP（IoT 常见）
 ```
-
-### 8. 会话级时序分析（命令-响应卡在哪、延迟多久）
-
-定位"协议交互卡在某条命令、响应丢失/延迟"类问题（FTP / HTTP / MQTT / CoAP 登录或请求偶发超时）——不要逐包翻，按会话看时序：
-
-```bash
-# 1) flows 看所有会话，用"起止时间跨度"和"包数"挑异常会话：
-#    正常一次协议交互(握手+登录+请求)通常跨度小、包数稳定；跨度远超同类 = 卡在某步等响应
-python scripts/pcap_analyzer.py flows capture.pcap --port 10020
-
-# 2) 对异常会话 show 逐包，看命令(C→S)-响应(S→C)序列，定位卡在哪条命令(它发出后没有对应响应)
-python scripts/pcap_analyzer.py show capture.pcap --lport 19362
-
-# 3) 精确算"命令→响应"延迟：记下命令包与响应包时间戳相减；或用 around 锁定静默段前后
-python scripts/pcap_analyzer.py around capture.pcap --time 16:22:55.120 --window 30
+extract_packets(protocol="mqtt", output_format="full")          # CONNECT/CONNACK/PUBLISH/SUBSCRIBE…
+extract_stream(endpoint_a=..., endpoint_b=..., protocol="tcp", output_format="full")  # 锁定 1883 流
 ```
+- **MQTT** 判读：CONNECT(版本/clientId/keepalive) → CONNACK 返回码(rc=0 连接成功 / rc=5 鉴权失败) → PUBLISH(topic) → PINGREQ/RESP 心跳。连接失败重点看 CONNACK 的 rc。
+- **CoAP**：端口 5683/5684；tshark 解 类型(CON/NON/ACK/RST)、方法/响应码(GET/POST/2.05/4.04/5.00)、options(Uri-Path/Content-Format)。LWM2M 设备管理走 CoAP，报文层故障先看响应码。
 
-**判读**：`show` 输出每包带时间戳与方向（C→S / S→C）。一条命令(C→S)后长时间无对应响应(S→C)即"卡点"；命令发出到响应到达的间隔即该步延迟。对比同类正常会话的同一步延迟，即可判定是偶发慢响应还是丢响应。
+### 6. 会话级时序分析（命令-响应卡在哪、延迟多久）
+定位"协议交互卡在某条命令、响应丢失/延迟"（FTP/HTTP/MQTT/CoAP 登录或请求偶发超时）：
+```
+list_conversations(protocol="tcp")      # 用 duration + 包数挑异常会话：跨度远超同类 = 卡在某步等响应
+extract_stream(endpoint_a=..., endpoint_b=..., output_format="full")  # 看命令(C→S)-响应(S→C)序列
+get_statistics(metric="latency")        # 量化 HTTP 请求-响应延迟（avg/min/max）
+```
+**判读**：一条命令(C→S)后长时间无对应响应(S→C)即"卡点"。对比同类正常会话的同一步延迟，判定偶发慢响应 vs 丢响应。
 
-> 实战教训：FTP 压测偶发 ERROR，`flows` 看出某会话跨度 51 秒（其余 ~2 秒），`show` 该会话发现 PASS 命令发出后 30 秒无 230 响应——模块超时返回 ERROR，而服务器 230 其实更晚才到（延迟响应）。靠"会话跨度异常 + 命令-响应间隔"两步定位，无需手写脚本。
+> 实战教训（迁移自旧脚本）：FTP 压测偶发 ERROR，`list_conversations` 看出某会话跨度 51 秒（其余 ~2 秒），`extract_stream` 该会话发现 PASS 命令发出后 30 秒无 230 响应——模块超时返回 ERROR，而服务器 230 其实更晚才到（延迟响应）。靠"会话跨度异常 + 命令-响应间隔"两步定位。方法论不变，工具换成 tshark。
 
-## 协议解码深度
+### 7. 量化统计（新能力，旧脚本没有）
+```
+get_statistics(metric="retransmission")   # 重传率% + 重传包列表（带 5-tuple）
+get_statistics(metric="packet_loss")      # 重复 ACK / 快速重传 / 乱序 计数 + 事件
+get_statistics(metric="throughput")       # 总包/字节、平均 bps、fps
+get_statistics(metric="tcp")              # 每连接包数/字节数
+get_statistics(metric="all")              # 全量
+```
+怀疑"丢包/重传/带宽瓶颈/乱序"类网络层问题时，先跑统计拿量化证据，再 `extract_stream` 看具体包。
 
-| 层 | 解码内容 | 说明 |
-|----|----------|------|
-| 链路层 | Ethernet src/dst/type | scapy 自动分层 |
-| 网络层 | IP src/dst/TTL/proto | scapy 自动分层 |
-| TCP 传输层 | flags 解码（SYN/ACK/FIN/RST/PSH）、seq/ack、payload 长度、**重传标注** | flags 自动转可读名 |
-| TLS 记录层 | ContentType（Handshake/Alert/AppData/CCS）、版本、长度 | 手动解记录层，多记录段自动拆分 |
-| TLS 握手层 | ClientHello（**SNI 域名提取**）、ServerHello、Certificate、Alert level/desc | 从 Handshake body 提取 |
-| **MQTT**（3.1.1 & 5.0） | CONNECT（版本/clientId/keepalive）、CONNACK（返回码）、PUBLISH（topic/payload）、SUBSCRIBE、PINGREQ/RESP、DISCONNECT | 端口 1883 自动识别，scapy.contrib.mqtt 解码 |
-| **CoAP** | 类型（CON/NON/ACK/RST）、方法/响应码（GET/POST/2.05/4.04 等）、token、options（Uri-Path/Content-Format/Observe 等） | 端口 5683/5684 自动识别，scapy.contrib.coap + 手动解 options |
-| 明文应用协议 | HTTP 请求行/状态码/关键头、FTP/SMTP 命令响应、DNS 问答 | payload 正则识别 |
-
-## 判据与避坑（来自实战纠错）
+## 判据与避坑（迁移：工具换了仍然适用）
 
 ### 1. TCP 重传 vs 粘包（关键避坑点）
-TCP 重传的包 seq 与原包相同，会被误判为"同段多条记录"。**判别靠 seq 去重**：维护每流 `rcv_nxt`，`seq < rcv_nxt` 即重传。
-> 实战教训：用户曾纠正 AI "从报文看这个时间点没有粘包"——AI 把 TCP 重传捎带误判为粘包。解读 `show` 输出时，注意相同 seq 的包是重传，不应当作新数据处理。
+TCP 重传的包 seq 与原包相同，会被误判为"同段多条记录"。
+- `get_statistics(metric="retransmission")` 已自动识别重传；
+- `extract_stream` full 看 seq，**相同 seq 的包是重传，不是新数据/粘包**。
+> 实战教训：用户曾纠正 AI"从报文看这个时间点没有粘包"——AI 把 TCP 重传捎带误判为粘包。解读时务必用 seq 去重。
 
 ### 2. 应用层假设必须在报文字节找证据
-- 假设"服务器 421 空闲超时" → 必须 `search -k "421"` 在 payload 找到字面 "421"
-- 假设"服务端主动关闭" → 必须 `show` 看到 S>C 方向的 RST 先于客户端
-- **找不到字节证据即排除该假设**，不能靠 AT 日志猜
+- 假设"服务器 421 空闲超时" → 必须 `extract_packets`/`extract_stream` 在 info/payload 找到字面 "421"；
+- 假设"服务端主动关闭" → 必须看到 S→C 方向的 RST/FIN 先于客户端；
+- **找不到字节证据即排除该假设**，不能靠 AT 日志猜。
 
-### 3. TCP flags 速查
-| flags 值 | 含义 |
-|---------|------|
-| `FIN,ACK` (0x11) | 正常关闭（四次挥手） |
-| `RST,ACK` (0x14) | 强制断开（异常关闭或拒绝） |
-| `PSH,ACK` (0x18) | 携带数据的正常包 |
-| `SYN` (0x02) | 连接请求 |
-| `SYN,ACK` (0x12) | 连接接受 |
+### 3. TLS 加密内容的边界（与 Wireshark 相同）
+TLS **加密的 ApplicationData 不可解**。但以下都是**明文**，足够定位大多数 TLS 问题：ClientHello(含 SNI 域名、密码套件、版本)、ServerHello、Alert level/desc、ChangeCipherSpec、记录层 ContentType。MQTT over TLS 同理。
 
-### 4. 加密内容的边界（与 Wireshark 相同）
-TLS **加密的 ApplicationData 不可解**（无会话密钥，Wireshark 也需要 keylog）。但以下都是**明文**，足够定位大多数 TLS 问题：
-- ClientHello（含 SNI 域名、密码套件列表、版本）
-- ServerHello（版本、选定套件）
-- Alert 的 level/desc
-- ChangeCipherSpec
-- 记录层 ContentType（区分握手/告警/应用数据）
+### 4. Windows 环境注记
+- tshark/capinfos 输出为 UTF-8；若经 GBK 终端管道出现乱码，设 `PYTHONUTF8=1`。
+- 大日志含非 ASCII 字节时，`grep "ERROR"` 可能返回 `Binary file matches` 就停住——加 `-a` 强制按文本处理。
 
-### 5. Windows 环境注记（来自实战纠错）
+## 文本格式报文 dump
 
-- **libpcap 未装告警**：脚本首行 `WARNING: No libpcap provider available ! pcap won't be used` 是 scapy 在无 libpcap C 库时**自动回退纯 Python reader** 的告警，**不影响解析**（标准 pcap 与文本 dump 都正常）。别被字面 "pcap won't be used" 误导成"脚本失效/格式不对"而去找格式问题。
-- **中文乱码**：脚本输出含中文列名（"协议/端点A/结局"），Windows GBK 终端下会乱码——数据本身正常。设 `PYTHONUTF8=1`（或 `PYTHONIOENCODING=utf-8`）可解；只取英文字段（IP/端口/时间/flags）时忽略即可。
-- **grep 把日志当二进制**：大日志含非 ASCII 字节时，`grep "ERROR"` 可能返回 `Binary file matches` 就停住、漏数据——加 `-a` 强制按文本处理。
+模块内置抓包 / 串口抓包 / QXDM 类工具常导出 **ASCII hex dump**（框线分隔 + `|偏移|hex|` 或 Wireshark 式 `0000  xx xx`），而非标准 pcap/pcapng。**tshark 只认标准 pcap/pcapng**。
+- **注意**：子模块仅捆绑 `tshark` + `capinfos`，**未含 `text2pcap`**。
+- 处理方式：
+  1. **优先**用抓包工具的"导出 pcap/pcapng"选项（最省事）；
+  2. 装完整 Wireshark 取其 `text2pcap` 转换：`text2pcap <dump.txt> out.pcap`，再喂给本工具；
+  3. （可选）若现场频繁只有文本 dump，可后续补一个极小的 hex→pcap 预处理脚本。
+
+## 报告留痕规范
+
+报文相关结论写进 Bug 分析报告时，把 `extract_stream`(output_format="full") / `get_statistics` 的关键输出用 Write 落盘到 `.spec/bug/{工作项ID}_{问题描述}/analysis/pcap_report.md`，附 raw 字段让读者可独立复核，不依赖分析者的转述。
 
 ## 能力边界（诚实声明）
 
-- ✅ 明文协议完整解码（HTTP/FTP/DNS/SMTP）
-- ✅ **MQTT 3.1.1 & 5.0**（CONNECT/CONNACK/PUBLISH/SUBSCRIBE 等）
-- ✅ **CoAP**（方法/响应码/options，覆盖 LWM2M 底层）
-- ✅ TCP 流交互重建 + 重传识别
+- ✅ **全协议栈解码（tshark 级，远超 scapy）**：HTTP/FTP/DNS/SMTP/TLS/MQTT/CoAP 等，分层树完整
+- ✅ TCP 流双向重建 + 重传/重复ACK/乱序/HTTP 延迟等**定量统计**
 - ✅ TLS 握手层 + SNI + Alert（覆盖大多数 TLS 问题）
+- ✅ MQTT 3.1.1/5.0、CoAP（LWM2M 底层）完整解码
 - ⚠️ TLS 加密内容不可解（需 keylog，Wireshark 同样限制）——MQTT over TLS 同理
-- ⚠️ pcapng / 文本 dump 依赖 scapy 版本与报文完整性，未做全面回归；遇解析异常优先怀疑这两类
-- ⚠️ scapy.contrib 对 MQTT 5.0 新增控制包（AUTH）和部分属性的解析可能不完整，核心控制包（CONNECT/CONNACK/PUBLISH）稳定
-- ✅ 对 IoT 模组常见报文类 bug（连接断开、握手失败、MQTT 连接、CoAP 响应异常、协议交互错误）覆盖率 > 90%
-
-## 证据留痕规范
-
-报文相关结论写进 Bug 分析报告时，用 `show --hex` 或 `decode --hex` 取出 **raw hex + 解码对照**附入报告，让读者可独立复核，不依赖分析者的转述。
+- ⚠️ 文本格式 dump 需先转 pcap（子模块未含 text2pcap，见上节）
+- ⚠️ MCP server 未注册 / 依赖未装 / 子模块未 init 时该路不通——SessionStart 钩子会打印指引
+- ✅ 对 IoT 模组常见报文类 bug（连接断开、握手失败、MQTT 连接、CoAP 响应异常、重传/丢包、协议交互错误）覆盖率高

@@ -57,7 +57,7 @@
 #### pcap 报文（网络协议层问题时）
 
 ```
-[pcap 关键交互：用 pcap_analyzer.py show/around 取的逐包序列或异常时刻报文]
+[pcap 关键交互：用 TShark2MCP MCP 工具 extract_stream/extract_packets 取的逐包序列或异常时刻报文]
 ```
 
 ### 2.2 代码调用链

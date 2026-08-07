@@ -5,7 +5,7 @@
 ## Prerequisites
 
 - Pi installed: `npm install -g --ignore-scripts @earendil-works/pi-coding-agent` (or the installer at https://pi.dev)
-- Python 3 (for the analysis scripts: pcap parser, dump parsers, knowledge archiver)
+- Python 3.10+ (for the analysis scripts: dump parsers, knowledge archiver; pcap 报文解析由内嵌 TShark2MCP MCP server 提供，需 ≥3.10)
 
 ## Install
 
@@ -44,12 +44,14 @@ pi install -l /c/Users/20220715012/.spec-embedded-iot
 - **热重载**：改完 `SKILL.md` / `.ts` 扩展后，在 Pi 里执行 `/reload` 重新加载扩展、技能、模板、主题。
 - 路径指向**目录**时按包规则加载（`pi` 字段 + 约定目录）；指向**单个 `.ts` 文件**时只加载那一个扩展（适合临时试验）。
 
-## Python dependencies (analysis scripts)
+## Python dependencies (analysis scripts + TShark2MCP)
 
-Pi does **not** install Python deps. Install them once:
+Pi does **not** install Python deps. `requirements.txt` 含 `-e ./vendor/TShark2MCP`（本地子模块路径），远程 URL 装不了——必须从 Pi 克隆出的包目录安装，并先 init 子模块（Pi 克隆不一定递归子模块）：
 
 ```bash
-pip install -r https://raw.githubusercontent.com/niusulong/.spec-embedded-iot/master/requirements.txt
+PKG=~/.pi/agent/git/github.com/niusulong/.spec-embedded-iot
+git -C "$PKG" submodule update --init vendor/TShark2MCP   # 拉 TShark2MCP 源码（含 ~118MB Windows tshark）
+pip install -r "$PKG/requirements.txt"                     # 含 -e vendor/TShark2MCP，自动拉 mcp + pydantic
 ```
 
 ## What gets loaded

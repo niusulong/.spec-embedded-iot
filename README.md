@@ -13,6 +13,8 @@
 /plugin install spec-embedded-iot@spec-embedded-iot
 ```
 
+> **pcap 报文分析后端（bundled MCP）**：`spec-bug-analyzer` 的 pcap 解析由内嵌 TShark2MCP MCP server（封装 tshark）提供，插件启用即自动注册 `tshark` server（5 工具：overview / conversations / extract_packets / extract_stream / statistics）。需 Python ≥3.10 + 一次性安装依赖（含 ~118MB Windows 便携 tshark 子模块）；**未就绪时 SessionStart 钩子会打印含确切路径的修复命令**（`git submodule update --init vendor/TShark2MCP` + `pip install -r requirements.txt`）。Codex/OpenCode 手动注册见 `skills/spec-using-agents/references/{codex,opencode}-tools.md`。只用 dump 分析 / 需求链路等其它技能则无需此步。
+
 ### 其他平台
 
 - **Pi (Pi Coding Agent)**：
@@ -25,7 +27,7 @@
 
 | 技能 | 触发词 | 说明 |
 |------|--------|------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug 根因分析：从 AT 命令日志、模块 AP 日志中定位根本原因，支持正常/异常日志对比分析，条件触发知识库历史案例检索，内置 pcap 报文解析（替代 Wireshark） |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug 根因分析：从 AT 命令日志、模块 AP 日志中定位根本原因，支持正常/异常日志对比分析，条件触发知识库历史案例检索，内嵌 TShark2MCP（tshark）做 pcap 报文解析 |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 (ARM Cortex-R + ThreadX) Crash Dump 分析：AXF 反汇编、DDR 栈分析、静态栈深度分析、WDT 追踪、堆扫描 |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 (ARM Cortex-M + FreeRTOS) Crash Dump 分析：excep_store 解析、Fault Status 解码、FreeRTOS TCB 解析、LWIP memp 泄漏检测、DWARF 源码行号映射、objdump 反汇编上下文 |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 (Unisoc ARM Cortex-M3 + FreeRTOS) Crash Dump 分析：excepInfoStore 解析、ASSERT/HardFault 识别、PC/LR→源码行映射（pyelftools，无需 ARM 工具链）、FreeRTOS 任务栈溢出扫描、OSA 协议栈专用池扫描 |

@@ -34,4 +34,16 @@ else
   printf '{\n  "additionalContext": "%s"\n}\n' "$session_context"
 fi
 
+# ── TShark2MCP（pcap 分析后端）就绪探测 ──────────────────────────
+# 非阻塞：未就绪只向 stderr 打印修复指引，不影响 spec-using-agents 注入。
+# 已就绪则静默。
+TS_SUBMOD="${PLUGIN_ROOT}/vendor/TShark2MCP"
+if [ ! -f "${TS_SUBMOD}/pyproject.toml" ]; then
+  echo "[spec-embedded-iot] TShark2MCP 子模块未初始化 —— pcap 分析后端不可用。" >&2
+  echo "[spec-embedded-iot]   修复：cd \"${PLUGIN_ROOT}\" && git submodule update --init vendor/TShark2MCP" >&2
+elif ! python -c 'import tshark_mcp' >/dev/null 2>&1; then
+  echo "[spec-embedded-iot] TShark2MCP 依赖未安装（tshark_mcp 不可 import）—— pcap 分析后端不可用。" >&2
+  echo "[spec-embedded-iot]   修复：pip install -r \"${PLUGIN_ROOT}/requirements.txt\"" >&2
+fi
+
 exit 0

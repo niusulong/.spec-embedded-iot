@@ -4,6 +4,7 @@
 > 作者：niusulong × Claude（brainstorming 协同）
 > 状态：待审（spec review）
 > 范围：仅 `skills/spec-bug-analyzer/`，不涉及 5 个 dump 分析器内部
+> 注（2026-08-07 更新）：文中"`pcap_analyzer.py`（协议解码 single source）"等描述已于 v1.16 失效——pcap 分析后端改为内嵌 TShark2MCP MCP server（封装 tshark）。正文保留作历史设计参考，现行方法见 `skills/spec-bug-analyzer/references/pcap-analyzer-guide.md`。
 
 ---
 
