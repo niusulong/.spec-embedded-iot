@@ -45,7 +45,7 @@ Skills use Claude Code tool names. Non-CC platforms: see `references/codex-tools
 
 | Skill | Trigger | Description |
 |-------|---------|-------------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug root-cause analysis with knowledge base retrieval + pcap parsing |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题 | Bug root-cause analysis from logs (AT/AP/pcap) + knowledge base retrieval; multi-platform via `profiles/`; dump analysis delegated to platform dump skills |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump | ASR platform crash dump analysis (Cortex-R + ThreadX) |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃 | EC platform crash dump analysis (Cortex-M + FreeRTOS) |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D crash dump analysis (Unisoc Cortex-M3 + FreeRTOS) |

@@ -34,7 +34,7 @@ python skills/spec-knowledge-archiver/scripts/kb.py archive --project {项目根
 
 | 技能 | 触发词 | 说明 |
 |------|--------|------|
-| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（日志+知识库检索，内置 pcap 报文解析；怀疑内存泄漏时转交 spec-memory-leak-analyzer） |
+| `spec-bug-analyzer` | spec 分析bug、spec 诊断问题、根因分析、定位问题、帮我看看日志、设备/模组异常 | Bug 根因分析（AT/AP/pcap 日志 + 知识库检索，多平台 `profiles/` 按平台加载差异化方法；不解析 dump→转对应平台 dump 分析器；怀疑内存泄漏→spec-memory-leak-analyzer） |
 | `spec-asr1603-dump-analyzer` | spec 分析dump、crash dump、死机分析 | ASR 平台 crash dump 分析（Cortex-R + ThreadX） |
 | `spec-ec626-dump-analyzer` | EC dump、EC626崩溃、HardFault | EC 平台 crash dump 分析（Cortex-M + FreeRTOS） |
 | `spec-qcx216-dump-analyzer` | QCX216 死机、N706D 崩溃、excepInfoStore | QCX216/N706D 平台 crash dump 分析（Unisoc Cortex-M3 + FreeRTOS） |
