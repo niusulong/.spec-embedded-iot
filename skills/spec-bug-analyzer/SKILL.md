@@ -1,19 +1,16 @@
 ---
 name: spec-bug-analyzer
 description: >-
-  嵌入式软件 Bug 根因分析器：从故障现象、AT 命令日志、模块 AP 日志出发，沿调用链向上追溯，
+  嵌入式软件 Bug 根因分析器：从故障现象、AT 命令日志、模块 AP 日志、pcap 报文出发，沿调用链向上追溯，
   定位问题根本原因（而非停留在报错表象）。当用户说"spec 分析bug"、"spec 诊断问题"、
   "根因分析"、"定位问题"、"帮我看看这个日志"、"查下为什么 xxx"、"设备/模组异常"、
   "连接失败/断连"、"AT 报 ERROR"、"模块重启/死机怎么排查"时使用——只要用户意图是
   "找出问题为什么发生"，即使没有明说"分析bug"也应触发。当日志与代码分析穷尽仍无法定位根因时，
   询问用户是否检索历史案例库（不自动检索）。
-  边界：若用户直接给出 crash dump 文件、要求解析 PC/LR/SP/堆栈寄存器或异常反汇编，
-  按平台改用对应 dump 分析器——EC626/EC616（Cortex-M）用 spec-ec626-dump-analyzer、
-  ASR1603（Cortex-R）用 spec-asr1603-dump-analyzer、QCX216/N706D（Unisoc Cortex-M3）用 spec-qcx216-dump-analyzer、
-  UIS8850/N706-STD（Unisoc Cortex-R）用 spec-uis8850-dump-analyzer、UIS8852/N706C（Unisoc RISC-V）用 spec-uis8852-dump-analyzer；
-  若分析确认根因是内存泄漏且需要精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
+  边界：本技能不解析 crash dump（PC/LR/SP/堆栈寄存器、异常反汇编）——那是专门 dump 分析技能的职责；
+  若分析确认根因是内存泄漏且需精确定位泄漏代码位置（埋点追踪），引导用户使用 spec-memory-leak-analyzer；
   若要总结某个模块的代码实现，改用 spec-code-summary。本技能聚焦"基于日志的现象诊断与根因追溯"。
-version: 3.8
+version: 4.0
 author: niusulong
 ---
 
@@ -25,11 +22,17 @@ author: niusulong
 | **症状 ≠ 根因** | 错误发生的位置往往不是根因所在，需沿调用链向上逐层追问"谁调用了它？传入了什么？" |
 | **证据优先于假设** | 每个结论必须有日志或代码证据支撑，禁止凭直觉猜测。**关键节点强制标注证据类型**：根因结论、"两区域是否同空间/内存是否充足"类判断输出时，必须标 `[事实:文件:行号]` / `[推断]` / `[待验证]`；纯推断不得与代码行号并列陈述，"分区独立/同空间"类判断禁止假设、必须给分区表或地址数值 |
 | **单一假设验证** | 一次只验证一个假设，做最小变更；失败则回到追溯环节重新分析，不要在错误假设上叠加新假设 |
-| **证据不足即熔断** | 遍历所有可用日志和代码仍无法定位根因时，明确告知用户证据不足并建议补充（增加日志点、复现抓取、转 dump 深度分析），绝不基于薄弱证据强行下结论 |
+| **证据不足即熔断** | 遍历所有可用日志和代码仍无法定位根因时，明确告知用户证据不足并建议补充（增加日志点、复现抓取、转 dump 分析技能做现场解析），绝不基于薄弱证据强行下结论 |
+
+## 职责边界
+
+> **单一职责**：本技能只做日志（AT/AP/pcap）现象诊断与根因追溯，**不解析 crash dump、不解读 PC/LR/SP/堆栈寄存器、不做异常反汇编**——那是专门 dump 分析技能的职责（按平台选择，见 `spec-using-agents` 或 CLAUDE.md 技能表）。
+>
+> 分析中遇 dump 文件或寄存器解读需求：转交对应 dump 分析技能，本技能可继续做**死机前的日志时序与现象分析**，与 dump 现场分析互补，两者不冲突。
 
 ## 平台识别
 
-平台决定知识库检索范围（INDEX.md 平台分组）与 crash dump 的分派目标，分析开始前先识别当前平台。
+平台决定加载哪个 `profiles/{平台}.md`（平台差异化的分析方法）。分析开始前（Step 0）先识别平台。
 
 ### 权威来源：当前 git 仓库名
 
@@ -42,51 +45,40 @@ basename "$(git rev-parse --show-toplevel)"
 git rev-parse --abbrev-ref HEAD
 ```
 
-### 1. 确定检索平台（知识库 `--platform`）
+### 仓库名 → 平台名 → profile（单一映射）
 
-将仓库名映射到知识库 `~/.spec-embedded-iot/knowledge/raw/platform/` 下已有的平台目录。**先列目录**确认可选项：
+将仓库名映射到平台名，平台名直接对应 `profiles/{平台}.md`：
 
-```bash
-ls ~/.spec-embedded-iot/knowledge/raw/platform/
-```
-
-> **强制校验**：映射得到的平台名必须在上面 `ls` 的输出里**精确匹配**一个目录。不匹配（如仓库名含 `ASR` 映射出 `ASR`、但实际目录是 `ASR1603`）时，以实际目录为准重判，**不得带着错误平台名进入后续检索**——否则 INDEX.md 平台分组定位会出错。
-
-| 仓库名（大小写不敏感） | 平台名（`--platform`） | 架构/系统 |
-|----------------------|----------------------|-----------|
+| 仓库名（大小写不敏感） | 平台名 | 架构/系统 |
+|----------------------|--------|-----------|
 | 含 `EC626`（如 `EC626`、`ec626_firmware`） | `EC626` | Cortex-M + FreeRTOS |
 | 含 `ASR1603` | `ASR1603` | Cortex-R + ThreadX |
 | 含 `QCX216` 或 `N706D` | `QCX216` | Cortex-M3 + FreeRTOS（Unisoc） |
 | 含 `UIS8850` 或 `N706-STD` | `UIS8850` | Cortex-R + FreeRTOS（Unisoc） |
 | 含 `UIS8852` 或 `N706C` | `UIS8852` | RISC-V RV32 + RT-Thread（Unisoc） |
 | 含 `UIS8910` 或 `RDA` | `RDA_UIS8910DM_RLS` | — |
-| 含 `N58` | `N58` | — |
 
-匹配规则：**精确匹配 > 大小写不敏感包含**，命中唯一目录即采用。仓库名同时命中多个目录、或与任何目录都无交集（如多平台 monorepo、仓库名为通用代号）时，**直接询问用户所属平台，不要默认假设**。
+匹配规则：**精确匹配 > 大小写不敏感包含**，命中唯一目录即采用。仓库名同时命中多个、或与任何都无交集（如多平台 monorepo、仓库名为通用代号）时，**直接询问用户所属平台，不要默认假设**。
 
-### 2. 确定 dump 分派架构大类（仅死机/崩溃分析）
-
-死机/崩溃按**架构大类**分派到对应 dump 技能，与上述检索平台名相互独立：
-
-死机/崩溃按**平台**直接分派到对应 dump 技能（Unisoc 三平台架构各异——QCX216 是 Cortex-M3、UIS8850 是 Cortex-R、UIS8852 是 RISC-V——不能用单一架构大类概括，故按平台而非架构大类分派）：
-
-| 平台 | 架构/系统 | dump 技能 |
-|------|-----------|----------|
-| `EC626` | Cortex-M + FreeRTOS | `spec-ec626-dump-analyzer` |
-| `ASR1603` | Cortex-R + ThreadX | `spec-asr1603-dump-analyzer` |
-| `QCX216`（N706D） | Cortex-M3 + FreeRTOS（Unisoc） | `spec-qcx216-dump-analyzer` |
-| `UIS8850`（N706-STD） | Cortex-R + FreeRTOS（Unisoc） | `spec-uis8850-dump-analyzer` |
-| `UIS8852`（N706C） | RISC-V RV32 + RT-Thread（Unisoc） | `spec-uis8852-dump-analyzer` |
-
-分派目标优先由检索平台推断（上表）。日志线索（`memp_malloc`/`excep_store`/`tcpip_thread`/`nv_` 倾向 EC626；`tx_thread`/`[threadx]`/PSRAM/`DataAbort` 倾向 ASR1603；`osiPanic`/`gBlueScreenRegs`/`g_osAssert`/DTools ramdump 倾向 Unisoc 系）仅作交叉印证，不作为首要识别依据。
+> **平台命名规则**遵循单一真理源 `skills/spec-knowledge-archiver/references/section0-spec.md` §一（纯平台名，禁止架构后缀/括号/版本号）。**三名一致**：profile 文件名 = 知识库 `raw/platform/{平台}/` 目录名 = 上表平台名。校验由 `scripts/check_profile.py` 完成。
 
 ## 执行流程
+
+### Step 0：平台探测 + 加载 profile
+
+1. 按「平台识别」从仓库名确定平台名。
+2. **加载 `profiles/{平台}.md`**（仅差异，薄）——这是后续 Step 2/4/5 的平台上下文统一来源（日志差异、检索清单、代码地图、差异化定位手法、平台专属问题模式）。
+3. profile 不存在 → 退化为纯通用基线分析，提示"该平台尚无 profile，以通用方法为准"。
+
+> profile 结构与差异约束见 `profiles/_schema.md`。加载的 profile 贯穿 Step 2（日志分析）、Step 4（根因定位）、Step 5（代码交叉验证）。
 
 ### Step 1：获取参考文档
 
 提示用户提供文件路径，至少需要一个日志文件（`.spec/logs/`）。同时提供正常和异常两组日志时，自动进入对比分析模式（Step 3）。
 
 ### Step 2：日志分析
+
+**平台上下文**：本步的平台日志差异、平台特有检索串来自 Step 0 加载的 `profiles/{平台}.md`（日志差异段 / 检索清单段）。
 
 **前置：加载模块日志字段字典（来自 code-summary §8）**
 
@@ -106,7 +98,7 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
    | §8.2 错误码 | **现查含义，免读源码**——最大提效点 |
    | §8.4 URC/AT 回复 | 对照 AT 命令时序 |
    > 每条字段的「默认可见性」要尊重：grep/检索默认不输出的串（如 `P_DEBUG`）会落空，别误判为"模块无日志"。§8.0 只列默认可见项，非默认可见项若需要再去 §8.1–§8.6 查。
-3. **无现成总结时**：直接用 `references/analysis-patterns.md` 的通用关键字进入下方盲分析，或在 wiki/INDEX.md 里找类似模块的 case 借鉴其 §8 字段定义。
+3. **无现成总结时**：用 `references/analysis-patterns.md` 的通用关键字 + `profiles/{平台}.md` 的检索清单进入下方分析，或在 wiki/INDEX.md 里找类似模块的 case 借鉴其 §8 字段定义。
 
 > 取到的字段字典贯穿后续 Step 2 日志分析、Step 4 根因定位、Step 5 代码交叉验证——错误码 / 状态值的含义不再依赖临时翻码。
 
@@ -115,8 +107,10 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 | 优先级 | 日志类型 | 用途 |
 |--------|----------|------|
 | P0 | AT命令日志 | 操作流程和问题发生时序 |
-| P1 | Dump日志 | 死机/崩溃问题的堆栈信息 |
-| P2 | 模块AP日志 | 底层详细执行信息 |
+| P1 | 模块AP日志 | 底层详细执行信息 |
+| P2 | pcap 报文 | 网络协议层交互（用 `pcap_analyzer.py`） |
+
+> 死机/崩溃问题的 dump 现场（寄存器/堆栈）不属本技能，见【职责边界】转交 dump 分析技能；本技能分析死机**前**的日志时序与现象。
 
 **多源日志的前置核对（多份日志时必做）**：长挂测/压测场景下，AT 工具日志、模块 AP 日志、pcap 常来自不同时钟源、覆盖率几乎必然不一致——直接按时间戳跨源对齐极易踩坑（在某份日志按时间 grep 扑空，多因覆盖率缺口或时钟累积漂移，而非"真的没有"）。先花一步：
 
@@ -124,16 +118,6 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 - 跨源关联用**结构性锚点**（命令入口行号、唯一事件 ID、TCP 端口/seq、UTI），**不要用绝对时间戳对齐**。
 
 这一步既避免在未覆盖现场的日志里空搜，也能在"按时间 grep 在另一份日志落空"时第一反应是查覆盖率/时钟、而非反复改 grep。
-
-**死机/崩溃的分派**：当用户描述含"死机/重启/崩溃/HardFault"等关键词、或日志中存在 crash dump 时，按「平台识别 → 2」确定的**平台**分派到对应 dump 分析器做深度分析：
-
-- `EC626`/`EC616`（Cortex-M + FreeRTOS）→ `spec-ec626-dump-analyzer`（excep_store 解析、HardFault/ASSERT/WDT、FreeRTOS TCB、LWIP memp 耗尽、栈溢出、DWARF 行号映射）
-- `ASR1603`（Cortex-R + ThreadX）→ `spec-asr1603-dump-analyzer`（AXF 反汇编、DDR/PSRAM 栈分析、PC/LR 解码、WDT 追踪、代码完整性校验）
-- `QCX216`/`N706D`（Unisoc Cortex-M3 + FreeRTOS）→ `spec-qcx216-dump-analyzer`（excepInfoStore 解析、ASSERT/HardFault、PC/LR→源码行、FreeRTOS 栈溢出扫描）
-- `UIS8850`/`N706-STD`（Unisoc Cortex-R + FreeRTOS）→ `spec-uis8850-dump-analyzer`（gBlueScreenRegs、osiPanic、ARM Thumb 栈回溯、栈溢出 0xa5a5a5a5、CP assert 经 IPC）
-- `UIS8852`/`N706C`（Unisoc RISC-V + RT-Thread）→ `spec-uis8852-dump-analyzer`（g_osAssert/g_osException、DWARF CFI 回溯、dlmalloc 堆遍历、系统/中断栈溢出溅射检测）
-
-> 平台无法确定时询问用户（不要默认假设）。本技能仍可继续做日志层的时序与现象分析，与 dump 分析器互补。
 
 **大文件处理**：日志 ≥25KB 时用 `scripts/log_analyzer.py` 而非直接读取（脚本用法见 `references/log-analyzer-guide.md`）。
 
@@ -152,10 +136,11 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 **反驳证据自检闸**：每个根因结论输出前自问——"反驳这个结论需要什么证据？我有了吗？"缺反驳证据时，降级为"假设"并标 `[待验证]`，不得陈述为确定性结论。定位到 symptom 层（报错位置）而非根因层（触发源）时，继续向上追问，不得停留在"独立现象"。
 
 **参考来源（按优先级）**：
-1. `references/analysis-patterns.md` 的通用问题模式
-2. 若 Step 6 检索命中历史案例：将其根因分析、调用链、修复方案回溯注入，明确标注「参考历史案例：[案例标题]」。案例根因与当前一致则直接引用并验证；不一致则对比差异，可能发现新故障模式。
+1. `profiles/{平台}.md` 的差异化定位手法 + 平台专属问题模式（Step 0 已加载）
+2. `references/analysis-patterns.md` 的通用问题模式
+3. 若 Step 6 检索命中历史案例：将其根因分析、调用链、修复方案回溯注入，明确标注「参考历史案例：[案例标题]」。案例根因与当前一致则直接引用并验证；不一致则对比差异，可能发现新故障模式。
 
-> 知识库检索在 Step 6（本步之后）。本步先用模式 + 调用链推理根因；若推不动，到 Step 6 询问用户后检索，命中再回溯补充本步结论。
+> 知识库检索在 Step 6（本步之后）。本步先用 profile + 通用模式 + 调用链推理根因；若推不动，到 Step 6 询问用户后检索，命中再回溯补充本步结论。
 
 **内存泄漏转交**：若根因已定位到"内存泄漏 / 堆耗尽"但无法从日志确定具体泄漏代码位置（哪个分配点未释放），建议用户使用 `spec-memory-leak-analyzer` 通过 call-stack 追踪法精确定位。本技能已给出泄漏类型、对象和大致路径，用户只需在该位置埋点即可。
 
@@ -163,10 +148,19 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 
 基于代码验证分析结论（错误码含义、配置值、函数调用等）。信息不完整时扩展搜索依赖模块和配置文件。验证未通过 → 回到 Step 4 重新追溯，不要在错误假设上叠加新假设（见核心原则）。
 
-**代码定位纪律（大仓库 / 多子仓）**：
+**代码地图锚点探测优先（解决大仓/多子仓定位难）**：
+
+先用 Step 0 加载的 profile【代码地图】锚点 `glob` 探测：
+- **命中** → 沿锚点定位（最优路径，直击"全仓 grep 走弯路、需人工纠正"的痛点）；
+- **扑空** → **不静默**：提示"profile 代码地图锚点 `{X}` 未命中，可能已过期，建议更新 `profiles/{平台}.md`"；并回退到下方降级链。
+
+> 静态校验（`check_profile.py`）只查 profile schema 合规，查不了过期——过期只能靠本步运行时 glob 探测发现。
+
+**代码定位纪律（锚点扑空时的降级链）**：
 
 - **先窄后宽**：大型或多子仓代码库（如 monorepo）**不要直接全仓 grep**——易超时且命中太杂；先 `glob` 或限定 `components/<子模块>` 子目录定位文件，再 grep 具体符号。
 - **子仓要查**：业务逻辑常在子仓（如 `nwy_fwk_v2/NWY_FRAMEWORK`、协议栈 SDK 子目录）。全仓 grep 命中失败 ≠ 源码不在仓库；先列子仓目录再定位，避免误判"闭源不可查"而过早放弃代码验证、把本可确认的结论降级为 `[推断]`。
+- **参考项目概览**：锚点扑空时优先读该项目的 `项目概览.md` §2 目录结构映射（spec-project-overview 产出），拿最新的目录树再定位。
 - **确认不在仓库时再降级**：源码确不在本仓库（如厂商闭源 AT 引擎、二进制库）时，标注 `[基于日志推断]` 并建议查 SDK 文档/头文件，**不要反复全仓 grep**。
 
 ### Step 6：知识库检索（穷尽后询问）
@@ -177,9 +171,9 @@ ls ~/.spec-embedded-iot/knowledge/raw/platform/
 
 | # | 已完成项 |
 |---|---------|
-| 1 | 已遍历可用日志：按 P0→P1→P2 优先级读 AT命令日志 / Dump日志 / 模块AP日志（有则必读，不跳过） |
+| 1 | 已遍历可用日志：按 P0→P1→P2 优先级读 AT命令日志 / 模块AP日志 / pcap（有则必读，不跳过） |
 | 2 | 已查 §8 字段字典与错误码定义：报错码、状态串、URC 含义均已查实，未留下"待查源码"的码值 |
-| 3 | 已按 `references/analysis-patterns.md` 的通用 + 平台专属模式对号入座，无匹配或匹配后仍无法解释现象 |
+| 3 | 已按 `references/analysis-patterns.md` 的通用模式 + `profiles/{平台}.md` 的平台专属模式对号入座，无匹配或匹配后仍无法解释现象 |
 | 4 | 已做 Step 5 代码交叉验证：调用链、配置值、前置条件已核对，验证未通过或信息缺失 |
 
 > 任一项未完成 → 继续做该项，**不要**询问。四项全满足且根因仍不明确，才进入询问。
@@ -286,8 +280,10 @@ ls ~/.spec-embedded-iot/knowledge/wiki/concepts/
 
 ## 参考文档
 
+- `profiles/_schema.md` — **profile 契约**（六段结构 + 差异约束 + 一致性约束）
+- `profiles/{平台}.md` — 各平台差异化的分析方法（Step 0 按平台加载）
 - `references/bug-report-template.md` — 分析报告模板
 - `references/contrast-analysis-guide.md` — 对比分析方法详细指南
-- `references/analysis-patterns.md` — 常见问题模式（通用 + EC/ASR 平台专属）与搜索技巧
+- `references/analysis-patterns.md` — 通用问题模式与通用分析手法（平台专属已移至 `profiles/`）
 - `references/log-analyzer-guide.md` — 日志分析脚本使用指南
 - `references/pcap-analyzer-guide.md` — pcap 报文分析脚本使用指南（替代 Wireshark）

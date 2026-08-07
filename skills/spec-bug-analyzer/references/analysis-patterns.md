@@ -15,26 +15,11 @@
 | **AT 命令错误** | `ERROR`、`CME ERROR`、`CMS ERROR` | 命令格式 / 参数越界 / 模块状态不满足前置 |
 | **断连/重连** | `disconn`、`closed`、`reconnect`、链路状态回落 | 心跳超时 / 对端主动关闭 / 底层链路掉线 |
 
-## EC 平台（Cortex-M + FreeRTOS）专属
+## 平台专属方法
 
-| 现象 | 日志特征 | 根因方向 |
-|------|----------|----------|
-| **memp 池耗尽** | `memp_malloc fail`、`LWIP OOM` | 某类 pbuf/socket 未释放，累积耗尽；查 `trace_node` 分配追踪 |
-| **FreeRTOS 堆耗尽/泄漏** | `freeHeap` 持续下降、`pvPort_malloc fail` | 大块未释放；查 `trace_node`、任务栈占用 |
-| **栈溢出** | HardFault、`stack overflow`、栈水位检查告警 | 任务栈配置过小 / 递归或大局部变量 |
-| **ASSERT 触发** | 含 `文件名:行号` 的 `ASSERT` | 直接定位断言点，分析为何前置条件不满足 |
-| **看门狗复位** | `WDT`、`IWDT`、长时间无喂狗 | 某任务死循环 / 被高优先级任务饿死 / 中断中阻塞 |
-| **excep_store 异常** | `EXC_` 前导、HardFault 寄存器组 | 转交 `spec-ec626-dump-analyzer` 解析调用链 |
+平台专属的日志差异、检索清单、定位手法、问题模式已**移到 `profiles/{平台}.md`**（按平台渐进加载，本文件只保留跨平台通用内容）。当前有积累的平台：`EC626.md`、`ASR1603.md`；其余平台为空框架，待实战补充。
 
-## ASR 平台（Cortex-R + ThreadX）专属
-
-| 现象 | 日志特征 | 根因方向 |
-|------|----------|----------|
-| **DataAbort** | `DataAbort`、访问非法地址 | 野指针 / 释放后使用 / PSRAM 数据损坏 |
-| **PSRAM 代码完整性失败** | PSRAM 区执行校验异常 | DDR/PSRAM 数据被踩 / 时序问题 |
-| **ThreadX 阻塞** | `tx_thread` 长时间挂起 | 信号量/队列等待未唤醒、优先级反转 |
-| **看门狗超时** | `WDT`、`WdTimeout` | ISR 或线程死循环、调度被阻塞 |
-| **crash 寄存器组** | PC/LR/SP 地址、`0x7e...` | 转交 `spec-asr1603-dump-analyzer` 反汇编解码 |
+> 本文件不再保留平台专属段（避免与 profile 重复，DRY）。某平台无 profile 时，以本文件通用内容为准。
 
 ## 通用分析手法（跨平台验证有效）
 
@@ -47,7 +32,8 @@
 | **count 驱动的批量模式识别** | 压测/长稳/概率性、同一报错多次出现 | 先 `grep -c` 各候选错误标志（如各类 ERROR / 各阶段 timeout / 失败码），用**数量分布**判主模式与异类——例如「15 次 ERROR 但只 2 次 exec timeout」立即说明非同一原因、必须分类。这是批量问题的第一步，比逐条翻日志快一个量级，也避免把少数异类错归为多数模式 |
 | **抓包/原始报文验证** | 应用层假设（超时/keepalive/服务端主动关闭） | 抓包解码后，应用层回码（如 FTP 的 421/426）必须在报文字节里找到证据，找不到即排除应用层超时；TCP RST vs 应用层关闭需靠报文区分，不能靠 AT 日志猜。具体解析方法见 `pcap-analyzer-guide.md`，原始 .pcap 用 `pcap_analyzer.py`（替代 Wireshark），不要现场手写 struct 解析 |
 | **枚举重构回归定位** | 升级后行为翻转的回归 | `git diff -w`（忽略 CRLF）看魔法数字→枚举的重构，对照老代码语义值 vs 新枚举默认值（如 `regFlag==1` → `regFlag==AUTO_REG`，若 `AUTO_REG=0` 则语义翻转）；再用 `git log -S "枚举名"` pickaxe 锁定引入提交 |
-| **heap 失败点三数字判别** | EC 平台 malloc 崩溃/堆问题 | 取三个数：失败 malloc 请求字节数 + 最大连续 free 块 + 总 free。请求 ≤ 最大连续 free 但 > 总 free → 碎片化；请求 > 总 free → 容量不足；先判类型再定根因 |
+
+> 平台专属手法（如 EC626 的 heap 失败点三数字判别）见 `profiles/{平台}.md`。
 
 ## 搜索技巧
 
